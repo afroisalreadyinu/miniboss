@@ -1,0 +1,4 @@
+click==7.1.2
+docker==4.2.0
+furl==2.1.0
+requests==2.23.0
