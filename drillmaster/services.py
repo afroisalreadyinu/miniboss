@@ -217,13 +217,19 @@ class ServiceCollection:
         self.all_by_name = {}
         self._base_class = Service
 
-    def load_definitions(self):
+    def load_definitions(self, exclude=None):
+        exclude = exclude or []
         services = self._base_class.__subclasses__()
         if len(services) == 0:
             raise ServiceLoadError("No services defined")
         name_counter = Counter()
         for service in services:
-            self.all_by_name[service.name] = service
+            if service.name not in exclude:
+                self.all_by_name[service.name] = service
+                excluded_deps = [dep for dep in service.dependencies if dep in exclude]
+                if excluded_deps:
+                    raise ServiceLoadError("{:s} is to be excluded, but {:s} depends on it".format(
+                        excluded_deps[0], service.name))
             name_counter[service.name] += 1
         multiples = [name for name,count in name_counter.items() if count > 1]
         if multiples:
@@ -295,7 +301,7 @@ def start_services(use_existing, exclude, network_name):
     global the_docker
     the_docker = docker.from_env()
     collection = ServiceCollection()
-    collection.load_definitions()
+    collection.load_definitions(exclude=exclude)
     existing_network = the_docker.networks.list(names=[network_name])
     if not existing_network:
         network = the_docker.networks.create(network_name, driver="bridge")

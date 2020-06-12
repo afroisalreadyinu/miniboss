@@ -153,6 +153,31 @@ class ServiceCollectionTests(unittest.TestCase):
         collection.load_definitions()
         assert len(collection) == 3
 
+
+    def test_load_services_exclude(self):
+        collection = ServiceCollection()
+        class NewServiceBaseFive(Service):
+            name = "not used"
+            image = "not used"
+        collection._base_class = NewServiceBaseFive
+        class ServiceOne(NewServiceBaseFive):
+            name = "hello"
+            image = "hello"
+            dependencies = ["howareyou"]
+
+        class ServiceTwo(NewServiceBaseFive):
+            name = "goodbye"
+            image = "hello"
+            dependencies = ["hello"]
+
+        class ServiceThree(NewServiceBaseFive):
+            name = "howareyou"
+            image = "hello"
+
+        collection.load_definitions(exclude=['goodbye'])
+        assert len(collection) == 2
+
+
     #@patch('drillmaster.services.threading.Thread')
     def test_start_all(self):
         collection = ServiceCollection()
@@ -195,12 +220,14 @@ class ServiceCommandTests(unittest.TestCase):
 
         services.docker = DockerInit
         class MockServiceCollection:
-            def load_definitions(self):
+            def load_definitions(self, exclude=None):
+                self.excluded = exclude
                 pass
             def start_all(self, network_name):
                 self.network_name = network_name
                 return ["one", "two"]
-        services.ServiceCollection = MockServiceCollection
+        self.collection = MockServiceCollection()
+        services.ServiceCollection = lambda: self.collection
 
     def test_start_service_create_network(self):
         services.start_services(False, [], "drillmaster")
@@ -211,3 +238,7 @@ class ServiceCommandTests(unittest.TestCase):
         self.docker._networks = ["drillmaster"]
         services.start_services(False, [], "drillmaster")
         assert self.docker._networks_created == []
+
+    def test_start_service_exclude(self):
+        services.start_services(False, ['blah'], "drillmaster")
+        assert self.collection.excluded == ['blah']
