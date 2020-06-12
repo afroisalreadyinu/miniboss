@@ -219,6 +219,8 @@ class ServiceCollection:
 
     def load_definitions(self):
         services = self._base_class.__subclasses__()
+        if len(services) == 0:
+            raise ServiceLoadError("No services defined")
         name_counter = Counter()
         for service in services:
             self.all_by_name[service.name] = service
@@ -271,7 +273,8 @@ class ServiceCollection:
 
     def run_image(self, service: Service, network_name):
         global the_docker
-        container_name = "{:s}-drillmaster-{:s}".format(service.name, ''.join(random.sample(DIGITS, 4)))
+        container_name = "{:s}-drillmaster-{:s}".format(service.name,
+                                                        ''.join(random.sample(DIGITS, 4)))
         networking_config = the_docker.api.create_networking_config({
             network_name: the_docker.api.create_endpoint_config(aliases=[service.name])
         })

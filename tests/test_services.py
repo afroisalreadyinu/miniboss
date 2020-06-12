@@ -83,6 +83,11 @@ class ServiceCollectionTests(unittest.TestCase):
     def setUp(self):
         self.docker = services.the_docker = MockDocker()
 
+    def test_raise_exception_on_no_services(self):
+        collection = ServiceCollection()
+        with pytest.raises(ServiceLoadError):
+            collection.load_definitions()
+
     def test_raise_exception_on_same_name(self):
         collection = ServiceCollection()
         class NewServiceBaseOne(Service):
@@ -192,13 +197,14 @@ class ServiceCommandTests(unittest.TestCase):
         class MockServiceCollection:
             def load_definitions(self):
                 pass
-            def start_all(self):
+            def start_all(self, network_name):
+                self.network_name = network_name
                 return ["one", "two"]
         services.ServiceCollection = MockServiceCollection
 
     def test_start_service_create_network(self):
         services.start_services(False, [], "drillmaster")
-        assert self.docker._networks == [("drillmaster", "bridge")]
+        assert self.docker._networks_created == [("drillmaster", "bridge")]
 
 
     def test_start_service_skip_service_creation_if_exists(self):
