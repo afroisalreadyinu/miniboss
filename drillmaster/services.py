@@ -2,7 +2,9 @@ import random
 import socket
 import time
 import logging
-from collections import Counter
+from collections import Counter, Mapping
+import threading
+import copy
 
 import click
 import requests
@@ -163,99 +165,137 @@ class Keycloak:
 class ServiceLoadError(Exception):
     pass
 
-Services = None
+class ServiceDefinitionError(Exception):
+    pass
 
-def check_circular_dependencies():
-    with_dependencies = [x for x in Services.values() if x.dependencies != []]
-    for service in with_dependencies:
-        start = service.name
-        count = 0
-        def go_up_dependencies(checked):
-            nonlocal count
-            count += 1
-            for dependency in checked.dependencies:
-                if dependency.name == start:
-                    raise ServiceLoadError("Circular dependency detected")
-                if count == len(Services):
-                    return
-                go_up_dependencies(dependency)
-        go_up_dependencies(service)
+class ServiceMeta(type):
+    def __new__(cls, name, bases, attrdict):
+        if not bases:
+            return super().__new__(cls, name, bases, attrdict)
+        if not isinstance(attrdict.get("name"), str) or attrdict["name"] == "":
+            raise ServiceDefinitionError(
+                "Field 'name' of service class {:s} must be a non-empty string".format(name))
+        if not isinstance(attrdict.get("image"), str) or attrdict["image"] == "":
+            raise ServiceDefinitionError(
+                "Field 'image' of service class {:s} must be a non-empty string".format(name))
+        if "ports" in attrdict and not isinstance(attrdict["ports"], Mapping):
+            raise ServiceDefinitionError(
+                "Field 'ports' of service class {:s} must be a mapping".format(name))
+        if "env" in attrdict and not isinstance(attrdict["env"], Mapping):
+            raise ServiceDefinitionError(
+                "Field 'env' of service class {:s} must be a mapping".format(name))
+        return super().__new__(cls, name, bases, attrdict)
 
 
-# TODO: Turn this into a data class
-class Service:
+class Service(metaclass=ServiceMeta):
+    name = None
     dependencies = []
-
-    @classmethod
-    def load_definitions(cls):
-        global Services
-        services = cls.__subclasses__()
-        name_counter = Counter()
-        for service in services:
-            name_counter[service.name] += 1
-        multiples = [name for name,count in name_counter.items() if count > 1]
-        if multiples:
-            raise ServiceLoadError("Repeated service names: {:s}".format(",".join(multiples)))
-        Services = {service.name: service for service in services}
-        for service in Services.values():
-            dependencies = service.dependencies[:]
-            service.dependencies = [Services[dependency] for dependency in dependencies]
-        check_circular_dependencies()
+    ports = {}
+    env = {}
 
     def ping(self):
         pass
 
+class ServiceAgent:
 
-def run_image(service: Service, network_name):
-    container_name = "{:s}-drillmaster-{:s}".format(service.name, ''.join(random.sample(DIGITS, 4)))
-    networking_config = the_docker.api.create_networking_config({
-        network_name: the_docker.api.create_endpoint_config(aliases=[services.name])
-    })
-    host_config=the_docker.api.create_host_config(port_bindings=ports)
-    container = the_docker.api.create_container(
-        service.image,
-        detach=True,
-        name=container_name,
-        ports=list(service.ports.keys()),
-        environment=service.env,
-        host_config=host_config,
-        networking_config=networking_config)
-    the_docker.api.start(container.get('Id'))
-    return container
+    def __init__(self, service: Service):
+        self.service = service
+        self.open_dependencies = [x.name for x in service.dependencies]
+
+    @property
+    def can_start(self):
+        return self.open_dependencies == []
+
+    def process_service_started(self, service_name):
+        if service_name in self.open_dependencies:
+            self.open_dependencies.remove(service_name)
+
+
+class ServiceCollection:
+
+    def __init__(self):
+        self.all_by_name = {}
+        self._base_class = Service
+
+    def load_definitions(self):
+        services = self._base_class.__subclasses__()
+        name_counter = Counter()
+        for service in services:
+            self.all_by_name[service.name] = service
+            name_counter[service.name] += 1
+        multiples = [name for name,count in name_counter.items() if count > 1]
+        if multiples:
+            raise ServiceLoadError("Repeated service names: {:s}".format(",".join(multiples)))
+        for service in self.all_by_name.values():
+            dependencies = service.dependencies[:]
+            service.dependencies = [self.all_by_name[dependency] for dependency in dependencies]
+        self.check_circular_dependencies()
+
+    def check_circular_dependencies(self):
+        with_dependencies = [x for x in self.all_by_name.values() if x.dependencies != []]
+        for service in with_dependencies:
+            start = service.name
+            count = 0
+            def go_up_dependencies(checked):
+                nonlocal count
+                count += 1
+                for dependency in checked.dependencies:
+                    if dependency.name == start:
+                        raise ServiceLoadError("Circular dependency detected")
+                    if count == len(self.all_by_name):
+                        return
+                    go_up_dependencies(dependency)
+            go_up_dependencies(service)
+
+    def __len__(self):
+        return len(self.all_by_name)
+
+    def start_all(self, network_name):
+        service_agents = {name: ServiceAgent(service) for name, service in self.all_by_name.items()}
+        while service_agents:
+            without_dependencies = [x for x in service_agents.values() if x.can_start]
+            waiting_agents = [x for x in service_agents.values() if not x.can_start]
+            threads = []
+            for agent in without_dependencies:
+                self.run_image(agent.service, network_name)
+                def wait_and_remove():
+                    agent.service.ping(50)
+                    service_agents.pop(agent.service.name)
+                    for waiting in waiting_agents:
+                        waiting.process_service_started(agent.service.name)
+                ping_thread = threading.Thread(target=wait_and_remove)
+                ping_thread.start()
+                threads.append(ping_thread)
+            for thread in threads:
+                thread.join()
+
+    def run_image(self, service: Service, network_name):
+        global the_docker
+        container_name = "{:s}-drillmaster-{:s}".format(service.name, ''.join(random.sample(DIGITS, 4)))
+        networking_config = the_docker.api.create_networking_config({
+            network_name: the_docker.api.create_endpoint_config(aliases=[service.name])
+        })
+        host_config=the_docker.api.create_host_config(port_bindings=service.ports)
+        container = the_docker.api.create_container(
+            service.image,
+            detach=True,
+            name=container_name,
+            ports=list(service.ports.keys()),
+            environment=service.env,
+            host_config=host_config,
+            networking_config=networking_config)
+        the_docker.api.start(container.get('Id'))
+        return container
 
 
 def start_services(use_existing, exclude, network_name):
     global the_docker
     the_docker = docker.from_env()
-    Service.load_definitions()
+    collection = ServiceCollection()
+    collection.load_definitions()
     existing_network = the_docker.networks.list(names=[network_name])
     if not existing_network:
         network = the_docker.networks.create(network_name, driver="bridge")
         logger.info("Created network %s", network_name)
-    all_services = Services.values()
-    while all_services:
-        without_dependencies = [x for x in all_services if x.dependencies == []]
-        threads = []
-        for service in without_dependencies:
-            run_image(service, network_name)
-            def wait_and_remove():
-                service.ping()
-                all_services.remove(service.name)
-            ping_thread = threading.Thread(target=wait_and_remove)
-            ping_thread.start()
-            threads.append(ping_thread)
-        for thread in threads:
-            thread.join()
-    return
-    containers = start_keycloak()
-    try:
-        keycloak = Keycloak(furl.furl("http://localhost:{:d}".format(KEYCLOAK_PORT)))
-        logger.info("Creating test data on keycloak")
-        client_id, client_secret = keycloak.create_test_data()
-        containers['ostkreuz'] = add_ostkreuz(client_secret)
-    except:
-        logger.exception("Failed to run")
-        import pdb;pdb.set_trace()
-    else:
-
-        import pdb;pdb.set_trace()
+    service_names = collection.start_all(network_name)
+    logger.info("Started services: %s", ",".join(service_names))
