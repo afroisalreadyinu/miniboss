@@ -1,4 +1,5 @@
 import unittest
+import uuid
 
 import pytest
 
@@ -14,12 +15,16 @@ class MockDocker:
         self._networks = []
         self._networking_configs = None
         self._networks_created = []
+        self._containers_created = {}
+        self._containers_started = []
+
         class Networks:
             def list(self, names):
                 return [x for x in parent._networks if x in names]
             def create(self, network_name, driver=None):
                 parent._networks_created.append((network_name, driver))
         self.networks = Networks()
+
         class API:
             def create_networking_config(self, networking_dict):
                 parent._networking_configs = networking_dict
@@ -28,9 +33,11 @@ class MockDocker:
             def create_endpoint_config(self, aliases=None):
                 pass
             def create_container(self, image, **kwargs):
-                return {'Id': '1234'}
+                _id = str(uuid.uuid4())
+                parent._containers_created[_id] = {'image': image, **kwargs}
+                return {'Id': _id}
             def start(self, container_id):
-                pass
+                parent._containers_started.append(container_id)
         self.api = API()
 
 
@@ -150,20 +157,26 @@ class ServiceCollectionTests(unittest.TestCase):
         collection._base_class = NewServiceBaseFour
         class ServiceOne(NewServiceBaseFour):
             name = "hello"
-            image = "hello"
+            image = "hello/image"
             dependencies = ["howareyou"]
 
         class ServiceTwo(NewServiceBaseFour):
             name = "goodbye"
-            image = "hello"
+            image = "goodbye/image"
             dependencies = ["hello"]
 
         class ServiceThree(NewServiceBaseFour):
             name = "howareyou"
-            image = "hello"
+            image = "howareyou/image"
         collection.load_definitions()
         collection.start_all('the-network')
-
+        assert len(self.docker._containers_created) == 3
+        assert len(self.docker._containers_started) == 3
+        # The one without dependencies should have been started first
+        first_cont_id = self.docker._containers_started[0]
+        first_cont = self.docker._containers_created[first_cont_id]
+        assert first_cont['image'] == 'howareyou/image'
+        assert first_cont['name'].startswith('howareyou')
 
 
 class ServiceCommandTests(unittest.TestCase):
