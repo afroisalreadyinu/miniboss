@@ -1,13 +1,41 @@
 import unittest
 import uuid
+from types import SimpleNamespace as Bunch
 
 import pytest
 
 from drillmaster.services import (Service,
-                                  ServiceCollection,
                                   ServiceLoadError,
+                                  RunningContext,
+                                  ServiceCollection,
                                   ServiceDefinitionError)
 from drillmaster import services
+
+
+class RunningContextTests(unittest.TestCase):
+
+    def test_service_started(self):
+        collection = object()
+        service1 = Bunch(name='service1', dependencies=[])
+        service2 = Bunch(name='service2', dependencies=[service1])
+        context = RunningContext({'service1': service1, 'service2': service2},
+                                 'the-network', collection)
+        startable = context.service_started('service1')
+        assert len(startable) == 1
+        assert startable[0].service is service2
+
+
+    def test_done(self):
+        collection = object()
+        service1 = Bunch(name='service1', dependencies=[])
+        service2 = Bunch(name='service2', dependencies=[service1])
+        context = RunningContext({'service1': service1, 'service2': service2},
+                                 'the-network', collection)
+        context.service_started('service1')
+        context.service_started('service2')
+        assert context.done
+
+
 
 class MockDocker:
     def __init__(self):

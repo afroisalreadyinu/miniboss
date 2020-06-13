@@ -196,10 +196,13 @@ class Service(metaclass=ServiceMeta):
     def ping(self):
         pass
 
-class ServiceAgent:
+class ServiceAgent(threading.Thread):
 
-    def __init__(self, service: Service):
+    def __init__(self, service: Service, network_name, collection): # collection: ServiceCollection
+        super().__init__()
         self.service = service
+        self.network_name = network_name
+        self.collection = collection
         self.open_dependencies = [x.name for x in service.dependencies]
 
     @property
@@ -211,11 +214,62 @@ class ServiceAgent:
             self.open_dependencies.remove(service_name)
 
 
+    def run_image(self):
+        global the_docker
+        container_name = "{:s}-drillmaster-{:s}".format(self.service.name,
+                                                        ''.join(random.sample(DIGITS, 4)))
+        networking_config = the_docker.api.create_networking_config({
+            self.network_name: the_docker.api.create_endpoint_config(aliases=[self.service.name])
+        })
+        host_config=the_docker.api.create_host_config(port_bindings=self.service.ports)
+        container = the_docker.api.create_container(
+            self.service.image,
+            detach=True,
+            name=container_name,
+            ports=list(self.service.ports.keys()),
+            environment=self.service.env,
+            host_config=host_config,
+            networking_config=networking_config)
+        the_docker.api.start(container.get('Id'))
+        return container
+
+
+    def run(self):
+        self.run_image()
+        self.service.ping(50)
+        self.collection.start_next(self.service.name)
+
+
+class RunningContext:
+
+    def __init__(self, services_by_name, network_name, collection):
+        self.service_agents = {name: ServiceAgent(service, network_name, collection)
+                               for name, service in services_by_name.items()}
+        self.without_dependencies = [x for x in self.service_agents.values() if x.can_start]
+        self.waiting_agents = {name: agent for name, agent in self.service_agents.items()
+                               if not agent.can_start}
+
+    @property
+    def done(self):
+        return not bool(self.waiting_agents)
+
+    def service_started(self, started_service):
+        self.service_agents.pop(started_service)
+        startable = []
+        for name, agent in self.waiting_agents.items():
+            agent.process_service_started(started_service)
+            if agent.can_start:
+                startable.append(name)
+        return [self.waiting_agents.pop(name) for name in startable]
+
+
 class ServiceCollection:
 
     def __init__(self):
         self.all_by_name = {}
         self._base_class = Service
+        self.running_context = None
+        self.service_pop_lock = threading.Lock()
 
     def load_definitions(self, exclude=None):
         exclude = exclude or []
@@ -258,43 +312,18 @@ class ServiceCollection:
     def __len__(self):
         return len(self.all_by_name)
 
-    def start_all(self, network_name):
-        service_agents = {name: ServiceAgent(service) for name, service in self.all_by_name.items()}
-        while service_agents:
-            without_dependencies = [x for x in service_agents.values() if x.can_start]
-            waiting_agents = [x for x in service_agents.values() if not x.can_start]
-            threads = []
-            for agent in without_dependencies:
-                self.run_image(agent.service, network_name)
-                def wait_and_remove():
-                    agent.service.ping(50)
-                    service_agents.pop(agent.service.name)
-                    for waiting in waiting_agents:
-                        waiting.process_service_started(agent.service.name)
-                ping_thread = threading.Thread(target=wait_and_remove)
-                ping_thread.start()
-                threads.append(ping_thread)
-            for thread in threads:
-                thread.join()
+    def start_next(self, started_service):
+        with self.service_pop_lock:
+            new_startables = self.running_context.service_started(finished_service)
+            for agent in new_startables:
+                agent.start()
 
-    def run_image(self, service: Service, network_name):
-        global the_docker
-        container_name = "{:s}-drillmaster-{:s}".format(service.name,
-                                                        ''.join(random.sample(DIGITS, 4)))
-        networking_config = the_docker.api.create_networking_config({
-            network_name: the_docker.api.create_endpoint_config(aliases=[service.name])
-        })
-        host_config=the_docker.api.create_host_config(port_bindings=service.ports)
-        container = the_docker.api.create_container(
-            service.image,
-            detach=True,
-            name=container_name,
-            ports=list(service.ports.keys()),
-            environment=service.env,
-            host_config=host_config,
-            networking_config=networking_config)
-        the_docker.api.start(container.get('Id'))
-        return container
+    def start_all(self, network_name):
+        self.running_context = RunningContext(self.all_by_name, network_name, self)
+        for agent in self.running_context.without_dependencies:
+            agent.start()
+        while waiting_agents:
+            time.sleep(1)
 
 
 def start_services(use_existing, exclude, network_name):
