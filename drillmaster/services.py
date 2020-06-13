@@ -314,7 +314,7 @@ class ServiceCollection:
 
     def start_next(self, started_service):
         with self.service_pop_lock:
-            new_startables = self.running_context.service_started(finished_service)
+            new_startables = self.running_context.service_started(started_service)
             for agent in new_startables:
                 agent.start()
 
@@ -322,8 +322,8 @@ class ServiceCollection:
         self.running_context = RunningContext(self.all_by_name, network_name, self)
         for agent in self.running_context.without_dependencies:
             agent.start()
-        while waiting_agents:
-            time.sleep(1)
+        while not self.running_context.done:
+            time.sleep(0.05)
 
 
 def start_services(use_existing, exclude, network_name):

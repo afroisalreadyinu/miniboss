@@ -8,6 +8,7 @@ from drillmaster.services import (Service,
                                   ServiceLoadError,
                                   RunningContext,
                                   ServiceCollection,
+                                  ServiceAgent,
                                   ServiceDefinitionError)
 from drillmaster import services
 
@@ -34,7 +35,6 @@ class RunningContextTests(unittest.TestCase):
         context.service_started('service1')
         context.service_started('service2')
         assert context.done
-
 
 
 class MockDocker:
@@ -104,6 +104,14 @@ class ServiceDefinitionTests(unittest.TestCase):
                 name = "yes"
                 image = "yes"
                 env = "no"
+
+
+class ServiceAgentTests(unittest.TestCase):
+
+    def test_can_start(self):
+        service1 = Bunch(name='service1', dependencies=[])
+        agent = ServiceAgent(Bunch(name='service2', dependencies=[service1]), 'the-network', None)
+        assert agent.can_start is False
 
 
 class ServiceCollectionTests(unittest.TestCase):
