@@ -20,7 +20,7 @@ class RunningContextTests(unittest.TestCase):
         service1 = Bunch(name='service1', dependencies=[])
         service2 = Bunch(name='service2', dependencies=[service1])
         context = RunningContext({'service1': service1, 'service2': service2},
-                                 'the-network', collection)
+                                 'the-network', collection, 50)
         startable = context.service_started('service1')
         assert len(startable) == 1
         assert startable[0].service is service2
@@ -31,7 +31,7 @@ class RunningContextTests(unittest.TestCase):
         service1 = Bunch(name='service1', dependencies=[])
         service2 = Bunch(name='service2', dependencies=[service1])
         context = RunningContext({'service1': service1, 'service2': service2},
-                                 'the-network', collection)
+                                 'the-network', collection, 50)
         context.service_started('service1')
         context.service_started('service2')
         assert context.done
@@ -110,7 +110,7 @@ class ServiceAgentTests(unittest.TestCase):
 
     def test_can_start(self):
         service1 = Bunch(name='service1', dependencies=[])
-        agent = ServiceAgent(Bunch(name='service2', dependencies=[service1]), 'the-network', None)
+        agent = ServiceAgent(Bunch(name='service2', dependencies=[service1]), 'the-network', None, 50)
         assert agent.can_start is False
 
 
@@ -235,7 +235,7 @@ class ServiceCollectionTests(unittest.TestCase):
             name = "howareyou"
             image = "howareyou/image"
         collection.load_definitions()
-        collection.start_all('the-network')
+        collection.start_all(False, 'the-network', 50)
         assert len(self.docker._containers_created) == 3
         assert len(self.docker._containers_started) == 3
         # The one without dependencies should have been started first
@@ -258,23 +258,27 @@ class ServiceCommandTests(unittest.TestCase):
         class MockServiceCollection:
             def load_definitions(self, exclude=None):
                 self.excluded = exclude
-                pass
-            def start_all(self, network_name):
+            def start_all(self, create_new, network_name, timeout):
+                self.create_new = create_new
                 self.network_name = network_name
+                self.timeout = timeout
                 return ["one", "two"]
         self.collection = MockServiceCollection()
         services.ServiceCollection = lambda: self.collection
 
     def test_start_service_create_network(self):
-        services.start_services(False, [], "drillmaster")
+        services.start_services(False, [], "drillmaster", 50)
         assert self.docker._networks_created == [("drillmaster", "bridge")]
 
 
     def test_start_service_skip_service_creation_if_exists(self):
         self.docker._networks = ["drillmaster"]
-        services.start_services(False, [], "drillmaster")
+        services.start_services(True, [], "drillmaster", 50)
         assert self.docker._networks_created == []
+        assert self.collection.create_new
+        assert self.collection.timeout == 50
 
     def test_start_service_exclude(self):
-        services.start_services(False, ['blah'], "drillmaster")
+        services.start_services(True, ['blah'], "drillmaster", 50)
         assert self.collection.excluded == ['blah']
+        assert self.collection.create_new

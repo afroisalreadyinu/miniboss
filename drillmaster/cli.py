@@ -7,11 +7,12 @@ def cli():
     pass
 
 @cli.command()
-@click.option("--use_existing", default=True, help="Use existing containers")
+@click.option("--create-new", default=False, help="Create new containers instead of using existing")
 @click.option("--exclude", help="Names of services to exclude (comma-separated)")
-@click.option("--network-name", default="drillmaster", help="Network to use")
-def start(use_existing, exclude, network_name):
-    services.start_services(use_existing, exlude, network_name)
+@click.option("--network-name", default="drillmaster-network", help="Network to use")
+@click.option("--timeout", default="drillmaster-network", help="Network to use")
+def start(create_new, exclude, network_name, timeout):
+    services.start_services(use_existing, exlude, network_name, timeout)
 
 
 @cli.command()

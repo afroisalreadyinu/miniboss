@@ -28,140 +28,6 @@ OSTKREUZ_PORT = 8080
 
 the_docker = None
 
-class KeycloakException(Exception):
-    def __init__(self, msg, *args, **kwargs):
-        super().__init__(msg.format(*args, **kwargs))
-
-class TestingException(Exception):
-    def __init__(self, msg, *args, **kwargs):
-        super().__init__(msg.format(*args, **kwargs))
-
-
-class Keycloak:
-
-    def __init__(self, host: furl.furl):
-        self.host = host
-        self.token = None
-
-    def post(self, path, *args, expect_200=True, content_type='application/json', **kwargs):
-        kwargs.setdefault('headers', {})
-        kwargs['headers']["Accept"] = "application/json"
-        kwargs['headers']["Content-Type"] = content_type
-        if self.token:
-            kwargs['headers']["Authorization"] = "Bearer {}".format(self.token)
-        try:
-            response = requests.post(self.host / path, *args, **kwargs)
-        except requests.exceptions.ConnectionError:
-            raise KeycloakException("Could not reach Keycloak host at {!s}", self.host) from None
-        if expect_200 and response.status_code > 299:
-            raise KeycloakException("Keycloak error, status code {:d}, reason: {:s}",
-                                    response.status_code, response.text)
-        return response
-
-
-    def put(self, path, *args, **kwargs):
-        kwargs.setdefault('headers', {})
-        kwargs['headers']["Accept"] = "application/json"
-        kwargs['headers']["Content-Type"] = 'application/json'
-        kwargs['headers']["Authorization"] = "Bearer {}".format(self.token)
-        try:
-            response = requests.put(self.host / path, *args, **kwargs)
-        except requests.exceptions.ConnectionError:
-            raise KeycloakException("Could not reach Keycloak host at {!s}", self.host) from None
-        return response
-
-
-    def get(self, path, *args, expect_200=True, **kwargs):
-        try:
-            response = requests.get(
-                self.host / path, *args,
-                headers={"Accept": "application/json",
-                         "Authorization": "Bearer {}".format(self.token)},
-                **kwargs)
-        except requests.exceptions.ConnectionError:
-            raise KeycloakException("Could not reach Keycloak host at {!s}", self.host) from None
-        if expect_200 and response.status_code > 299:
-            raise KeycloakException("Keycloak error, status code {:d}, reason: {:s}",
-                                    response.status_code, response.text)
-        return response.json()
-
-    def ping(self, timeout):
-        start = time.monotonic()
-        while time.monotonic() - start < timeout:
-            try:
-                requests.get(self.host)
-            except requests.exceptions.ConnectionError:
-                continue
-            else:
-                return True
-        return False
-
-    def fetch_auth_token(self):
-        response = self.post("auth/realms/master/protocol/openid-connect/token",
-                             content_type="application/x-www-form-urlencoded",
-                             data={"username": "admin",
-                                   'password': 'admin',
-                                   'grant_type': 'password',
-                                   'client_id': 'admin-cli'})
-        self.token = response.json()['access_token']
-
-
-    def get_realms(self):
-        realms = self.get('auth/admin/realms')
-        return {x['realm']: x for x in realms}
-
-    def get_clients(self, realm):
-        path = "auth/admin/realms/{}/clients".format(realm)
-        return {x['clientId']: x for x in self.get(path)}
-
-    def create_realm(self, realm_name):
-        realms = self.get_realms()
-        if realm_name in realms:
-            return realms[realm_name]
-        response = self.post('auth/admin/realms',
-                             json={'realm': realm_name, 'enabled': True, 'sslRequired': 'none'})
-
-    def create_client(self, realm, client_id):
-        clients = self.get_clients(realm)
-        if client_id in clients:
-            client = clients[client_id]
-        else:
-            path = "auth/admin/realms/{}/clients".format(realm)
-            response = self.post(path, json={'clientId': 'ostkreuz-backend',
-                                             'redirectUris': ["http://localhost:8080/*"],
-                                             'publicClient': False})
-            client = self.get_clients(realm)[client_id]
-        secret = self.get("auth/admin/realms/{}/clients/{}/client-secret".format(realm, client['id']))
-        client['secret'] = secret
-        return client
-
-    def add_user(self, realm, username, email):
-        path = "auth/admin/realms/{}/users".format(realm)
-        users = self.get(path)
-        if email not in [x['email'] for x in users]:
-            self.post(path.format(realm),
-                      json={"email": email, "username": username, 'enabled': True})
-            users = self.get(path)
-        user = [u for u in users if u['email'] == email][0]
-        credentials_path = "auth/admin/realms/{}/users/{}/credentials".format(realm, user['id'])
-        credentials = self.get(credentials_path)
-        if len(credentials) != 0:
-            return
-        password_path = "auth/admin/realms/{}/users/{}/reset-password".format(realm, user['id'])
-        response = self.put(password_path,
-                            json={'type': 'password', 'value': 'ostkreuz', 'temporary': False})
-
-
-    def create_test_data(self):
-        if not self.ping(timeout=60):
-            raise TestingException("Could not start keycloak container, please look at logs")
-        self.fetch_auth_token()
-        self.create_realm('ostkreuz')
-        client = self.create_client('ostkreuz', 'ostkreuz-backend')
-        self.add_user("ostkreuz", "ulas", "ulas@ostkreuz.com")
-        return client['id'], client['secret']['value']
-
-
 class ServiceLoadError(Exception):
     pass
 
@@ -196,13 +62,17 @@ class Service(metaclass=ServiceMeta):
     def ping(self):
         pass
 
+    def post_init(self):
+        pass
+
 class ServiceAgent(threading.Thread):
 
-    def __init__(self, service: Service, network_name, collection): # collection: ServiceCollection
+    def __init__(self, service: Service, network_name, collection, timeout): # collection: ServiceCollection
         super().__init__()
         self.service = service
         self.network_name = network_name
         self.collection = collection
+        self.timeout = timeout
         self.open_dependencies = [x.name for x in service.dependencies]
 
     @property
@@ -235,15 +105,19 @@ class ServiceAgent(threading.Thread):
 
 
     def run(self):
-        self.run_image()
-        self.service.ping(50)
-        self.collection.start_next(self.service.name)
+        try:
+            self.run_image()
+            self.service.ping(self.timeout)
+            self.collection.start_next(self.service.name)
+        except:
+            logging.exception("Error starting service")
+            self.collection.service_failed(self.service.name)
 
 
 class RunningContext:
 
-    def __init__(self, services_by_name, network_name, collection):
-        self.service_agents = {name: ServiceAgent(service, network_name, collection)
+    def __init__(self, services_by_name, network_name, collection, timeout):
+        self.service_agents = {name: ServiceAgent(service, network_name, collection, timeout)
                                for name, service in services_by_name.items()}
         self.without_dependencies = [x for x in self.service_agents.values() if x.can_start]
         self.waiting_agents = {name: agent for name, agent in self.service_agents.items()
@@ -270,6 +144,7 @@ class ServiceCollection:
         self._base_class = Service
         self.running_context = None
         self.service_pop_lock = threading.Lock()
+        self.failed = False
 
     def load_definitions(self, exclude=None):
         exclude = exclude or []
@@ -318,15 +193,20 @@ class ServiceCollection:
             for agent in new_startables:
                 agent.start()
 
-    def start_all(self, network_name):
-        self.running_context = RunningContext(self.all_by_name, network_name, self)
+    def service_failed(self, failed_service):
+        self.failed = True
+
+    def start_all(self, create_new, network_name, timeout):
+        self.running_context = RunningContext(self.all_by_name, network_name, self, timeout)
         for agent in self.running_context.without_dependencies:
             agent.start()
-        while not self.running_context.done:
+        while not self.running_context.done and not self.failed:
             time.sleep(0.05)
+        if self.failed:
+            logger.error("Failed to start all services")
 
 
-def start_services(use_existing, exclude, network_name):
+def start_services(create_new, exclude, network_name, timeout):
     global the_docker
     the_docker = docker.from_env()
     collection = ServiceCollection()
@@ -335,5 +215,5 @@ def start_services(use_existing, exclude, network_name):
     if not existing_network:
         network = the_docker.networks.create(network_name, driver="bridge")
         logger.info("Created network %s", network_name)
-    service_names = collection.start_all(network_name)
+    service_names = collection.start_all(create_new, network_name, timeout)
     logger.info("Started services: %s", ",".join(service_names))
