@@ -108,10 +108,28 @@ class ServiceDefinitionTests(unittest.TestCase):
 
 class ServiceAgentTests(unittest.TestCase):
 
+    def setUp(self):
+        self.docker = services.the_docker = MockDocker()
+
+
     def test_can_start(self):
         service1 = Bunch(name='service1', dependencies=[])
-        agent = ServiceAgent(Bunch(name='service2', dependencies=[service1]), 'the-network', None, 50)
+        service2 = Bunch(name='service2', dependencies=[service1])
+        agent = ServiceAgent(service2, 'the-network', None, 50)
         assert agent.can_start is False
+
+    def test_run_image(self):
+        service1 = Bunch(name='service1', dependencies=[])
+        agent = ServiceAgent(Bunch(name='service2',
+                                   image='service/two',
+                                   ports={4040 : 4050},
+                                   env={'blah': 'yada'},
+                                   dependencies=[service1]),
+                             'the-network', None, 50)
+        agent.run_image()
+        assert len(self.docker._containers_created) == 1
+        assert len(self.docker._containers_started) == 1
+
 
 
 class ServiceCollectionTests(unittest.TestCase):
