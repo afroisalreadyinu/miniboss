@@ -60,7 +60,7 @@ class Service(metaclass=ServiceMeta):
     env = {}
 
     def ping(self):
-        pass
+        return True
 
     def post_init(self):
         pass
@@ -104,10 +104,20 @@ class ServiceAgent(threading.Thread):
         return container
 
 
+    def ping(self):
+        start = time.monotonic()
+        while time.monotonic() - start < self.timeout:
+            if self.service.ping(self.timeout):
+                return True
+        logger.error("Could not ping service with timeout of {}".format(self.timeout))
+        return False
+
     def run(self):
         try:
             self.run_image()
-            self.service.ping(self.timeout)
+            if not self.ping():
+                self.collection.service_failed(self.service.name)
+                return
             self.collection.start_next(self.service.name)
         except:
             logging.exception("Error starting service")
