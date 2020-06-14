@@ -109,7 +109,10 @@ class ServiceDefinitionTests(unittest.TestCase):
 class ServiceAgentTests(unittest.TestCase):
 
     def setUp(self):
-        self.docker = services.the_docker = MockDocker()
+        self.docker = MockDocker()
+        def get_fake_client():
+            return self.docker
+        services.get_client = get_fake_client
 
 
     def test_can_start(self):
@@ -135,7 +138,10 @@ class ServiceAgentTests(unittest.TestCase):
 class ServiceCollectionTests(unittest.TestCase):
 
     def setUp(self):
-        self.docker = services.the_docker = MockDocker()
+        self.docker = MockDocker()
+        def get_fake_client():
+            return self.docker
+        services.get_client = get_fake_client
 
     def test_raise_exception_on_no_services(self):
         collection = ServiceCollection()
@@ -267,12 +273,9 @@ class ServiceCommandTests(unittest.TestCase):
 
     def setUp(self):
         self.docker = MockDocker()
-        class DockerInit:
-            @classmethod
-            def from_env(cls):
-                return self.docker
-
-        services.docker = DockerInit
+        def get_fake_client():
+            return self.docker
+        services.get_client = get_fake_client
         class MockServiceCollection:
             def load_definitions(self, exclude=None):
                 self.excluded = exclude

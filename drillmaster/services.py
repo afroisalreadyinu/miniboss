@@ -11,7 +11,7 @@ import requests
 import furl
 import requests.exceptions
 
-import docker
+from drillmaster.docker_client import get_client
 
 DIGITS = "0123456789"
 
@@ -26,7 +26,6 @@ logger = logging.getLogger(__name__)
 KEYCLOAK_PORT = 8090
 OSTKREUZ_PORT = 8080
 
-the_docker = None
 
 class ServiceLoadError(Exception):
     pass
@@ -85,14 +84,14 @@ class ServiceAgent(threading.Thread):
 
 
     def run_image(self):
-        global the_docker
+        client = get_client()
         container_name = "{:s}-drillmaster-{:s}".format(self.service.name,
                                                         ''.join(random.sample(DIGITS, 4)))
-        networking_config = the_docker.api.create_networking_config({
-            self.network_name: the_docker.api.create_endpoint_config(aliases=[self.service.name])
+        networking_config = client.api.create_networking_config({
+            self.network_name: client.api.create_endpoint_config(aliases=[self.service.name])
         })
-        host_config=the_docker.api.create_host_config(port_bindings=self.service.ports)
-        container = the_docker.api.create_container(
+        host_config=client.api.create_host_config(port_bindings=self.service.ports)
+        container = client.api.create_container(
             self.service.image,
             detach=True,
             name=container_name,
@@ -100,7 +99,7 @@ class ServiceAgent(threading.Thread):
             environment=self.service.env,
             host_config=host_config,
             networking_config=networking_config)
-        the_docker.api.start(container.get('Id'))
+        client.api.start(container.get('Id'))
         return container
 
 
@@ -217,13 +216,12 @@ class ServiceCollection:
 
 
 def start_services(create_new, exclude, network_name, timeout):
-    global the_docker
-    the_docker = docker.from_env()
+    docker = get_client()
     collection = ServiceCollection()
     collection.load_definitions(exclude=exclude)
-    existing_network = the_docker.networks.list(names=[network_name])
+    existing_network = docker.networks.list(names=[network_name])
     if not existing_network:
-        network = the_docker.networks.create(network_name, driver="bridge")
+        network = docker.networks.create(network_name, driver="bridge")
         logger.info("Created network %s", network_name)
     service_names = collection.start_all(create_new, network_name, timeout)
     logger.info("Started services: %s", ",".join(service_names))
