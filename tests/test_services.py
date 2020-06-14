@@ -10,6 +10,7 @@ from drillmaster.services import (Service,
                                   ServiceCollection,
                                   ServiceAgent,
                                   ServiceDefinitionError)
+from drillmaster.service_agent import Options
 from drillmaster import services, service_agent
 
 
@@ -20,7 +21,7 @@ class RunningContextTests(unittest.TestCase):
         service1 = Bunch(name='service1', dependencies=[])
         service2 = Bunch(name='service2', dependencies=[service1])
         context = RunningContext({'service1': service1, 'service2': service2},
-                                 'the-network', collection, 50)
+                                 collection, Options(False, 'the-network', 50))
         startable = context.service_started('service1')
         assert len(startable) == 1
         assert startable[0].service is service2
@@ -31,7 +32,7 @@ class RunningContextTests(unittest.TestCase):
         service1 = Bunch(name='service1', dependencies=[])
         service2 = Bunch(name='service2', dependencies=[service1])
         context = RunningContext({'service1': service1, 'service2': service2},
-                                 'the-network', collection, 50)
+                                 collection, Options(False, 'the-network', 50))
         context.service_started('service1')
         context.service_started('service2')
         assert context.done
@@ -118,7 +119,7 @@ class ServiceAgentTests(unittest.TestCase):
     def test_can_start(self):
         service1 = Bunch(name='service1', dependencies=[])
         service2 = Bunch(name='service2', dependencies=[service1])
-        agent = ServiceAgent(service2, 'the-network', None, 50)
+        agent = ServiceAgent(service2, None, Options(False, 'the-network', 50))
         assert agent.can_start is False
 
     def test_run_image(self):
@@ -128,7 +129,8 @@ class ServiceAgentTests(unittest.TestCase):
                                    ports={4040 : 4050},
                                    env={'blah': 'yada'},
                                    dependencies=[service1]),
-                             'the-network', None, 50)
+                             None,
+                             Options(False, 'the-network', 50))
         agent.run_image()
         assert len(self.docker._containers_created) == 1
         assert len(self.docker._containers_started) == 1
@@ -146,6 +148,10 @@ class ServiceCollectionTests(unittest.TestCase):
 
     def test_raise_exception_on_no_services(self):
         collection = ServiceCollection()
+        class NewServiceBaseSix(Service):
+            name = "not used"
+            image = "not used"
+        collection._base_class = NewServiceBaseSix
         with pytest.raises(ServiceLoadError):
             collection.load_definitions()
 
@@ -260,7 +266,7 @@ class ServiceCollectionTests(unittest.TestCase):
             name = "howareyou"
             image = "howareyou/image"
         collection.load_definitions()
-        collection.start_all(False, 'the-network', 50)
+        collection.start_all(Options(False, 'the-network', 50))
         assert len(self.docker._containers_created) == 3
         assert len(self.docker._containers_started) == 3
         # The one without dependencies should have been started first
@@ -280,10 +286,8 @@ class ServiceCommandTests(unittest.TestCase):
         class MockServiceCollection:
             def load_definitions(self, exclude=None):
                 self.excluded = exclude
-            def start_all(self, create_new, network_name, timeout):
-                self.create_new = create_new
-                self.network_name = network_name
-                self.timeout = timeout
+            def start_all(self, options):
+                self.options = options
                 return ["one", "two"]
         self.collection = MockServiceCollection()
         services.ServiceCollection = lambda: self.collection
@@ -297,10 +301,10 @@ class ServiceCommandTests(unittest.TestCase):
         self.docker._networks = ["drillmaster"]
         services.start_services(True, [], "drillmaster", 50)
         assert self.docker._networks_created == []
-        assert self.collection.create_new
-        assert self.collection.timeout == 50
+        assert self.collection.options.create_new
+        assert self.collection.options.timeout == 50
 
     def test_start_service_exclude(self):
         services.start_services(True, ['blah'], "drillmaster", 50)
         assert self.collection.excluded == ['blah']
-        assert self.collection.create_new
+        assert self.collection.options.create_new

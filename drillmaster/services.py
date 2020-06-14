@@ -10,7 +10,7 @@ import furl
 import requests.exceptions
 
 from drillmaster.docker_client import get_client
-from drillmaster.service_agent import ServiceAgent
+from drillmaster.service_agent import ServiceAgent, Options
 
 logging.basicConfig(
     level=logging.INFO,
@@ -63,8 +63,8 @@ class Service(metaclass=ServiceMeta):
 
 class RunningContext:
 
-    def __init__(self, services_by_name, network_name, collection, timeout):
-        self.service_agents = {name: ServiceAgent(service, network_name, collection, timeout)
+    def __init__(self, services_by_name, collection, options: Options):
+        self.service_agents = {name: ServiceAgent(service, collection, options)
                                for name, service in services_by_name.items()}
         self.without_dependencies = [x for x in self.service_agents.values() if x.can_start]
         self.waiting_agents = {name: agent for name, agent in self.service_agents.items()
@@ -101,7 +101,7 @@ class ServiceCollection:
         name_counter = Counter()
         for service in services:
             if service.name not in exclude:
-                self.all_by_name[service.name] = service
+                self.all_by_name[service.name] = service()
                 excluded_deps = [dep for dep in service.dependencies if dep in exclude]
                 if excluded_deps:
                     raise ServiceLoadError("{:s} is to be excluded, but {:s} depends on it".format(
@@ -143,8 +143,8 @@ class ServiceCollection:
     def service_failed(self, failed_service):
         self.failed = True
 
-    def start_all(self, create_new, network_name, timeout):
-        self.running_context = RunningContext(self.all_by_name, network_name, self, timeout)
+    def start_all(self, options: Options):
+        self.running_context = RunningContext(self.all_by_name, self, options)
         for agent in self.running_context.without_dependencies:
             agent.start()
         while not (self.running_context.done or self.failed):
@@ -161,5 +161,5 @@ def start_services(create_new, exclude, network_name, timeout):
     if not existing_network:
         network = docker.networks.create(network_name, driver="bridge")
         logger.info("Created network %s", network_name)
-    service_names = collection.start_all(create_new, network_name, timeout)
+    service_names = collection.start_all(Options(create_new, network_name, timeout))
     logger.info("Started services: %s", ",".join(service_names))

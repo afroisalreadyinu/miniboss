@@ -2,6 +2,7 @@ import threading
 import random
 import time
 import logging
+from typing import NamedTuple
 
 from drillmaster.docker_client import get_client
 
@@ -9,16 +10,20 @@ logger = logging.getLogger(__name__)
 
 DIGITS = "0123456789"
 
+class Options(NamedTuple):
+    create_new: bool
+    network_name: str
+    timeout: int
+
 class ServiceAgent(threading.Thread):
 
-    def __init__(self, service, network_name, collection, timeout):
+    def __init__(self, service, collection, options: Options):
         # service: Service
         # collection: ServiceCollection
         super().__init__()
         self.service = service
-        self.network_name = network_name
         self.collection = collection
-        self.timeout = timeout
+        self.options = options
         self.open_dependencies = [x.name for x in service.dependencies]
 
     @property
@@ -35,7 +40,7 @@ class ServiceAgent(threading.Thread):
         container_name = "{:s}-drillmaster-{:s}".format(self.service.name,
                                                         ''.join(random.sample(DIGITS, 4)))
         networking_config = client.api.create_networking_config({
-            self.network_name: client.api.create_endpoint_config(aliases=[self.service.name])
+            self.options.network_name: client.api.create_endpoint_config(aliases=[self.service.name])
         })
         host_config=client.api.create_host_config(port_bindings=self.service.ports)
         container = client.api.create_container(
@@ -52,10 +57,10 @@ class ServiceAgent(threading.Thread):
 
     def ping(self):
         start = time.monotonic()
-        while time.monotonic() - start < self.timeout:
-            if self.service.ping(self.timeout):
+        while time.monotonic() - start < self.options.timeout:
+            if self.service.ping():
                 return True
-        logger.error("Could not ping service with timeout of {}".format(self.timeout))
+        logger.error("Could not ping service with timeout of {}".format(self.options.timeout))
         return False
 
     def run(self):
