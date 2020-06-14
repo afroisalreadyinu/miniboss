@@ -10,7 +10,7 @@ from drillmaster.services import (Service,
                                   ServiceCollection,
                                   ServiceAgent,
                                   ServiceDefinitionError)
-from drillmaster import services
+from drillmaster import services, service_agent
 
 
 class RunningContextTests(unittest.TestCase):
@@ -112,7 +112,7 @@ class ServiceAgentTests(unittest.TestCase):
         self.docker = MockDocker()
         def get_fake_client():
             return self.docker
-        services.get_client = get_fake_client
+        service_agent.get_client = get_fake_client
 
 
     def test_can_start(self):
@@ -142,6 +142,7 @@ class ServiceCollectionTests(unittest.TestCase):
         def get_fake_client():
             return self.docker
         services.get_client = get_fake_client
+        service_agent.get_client = get_fake_client
 
     def test_raise_exception_on_no_services(self):
         collection = ServiceCollection()
