@@ -54,6 +54,7 @@ class Service(metaclass=ServiceMeta):
     dependencies = []
     ports = {}
     env = {}
+    always_start_new = False
 
     def ping(self):
         return True
@@ -153,7 +154,7 @@ class ServiceCollection:
             logger.error("Failed to start all services")
 
 
-def start_services(create_new, exclude, network_name, timeout):
+def start_services(run_new_containers, exclude, network_name, timeout):
     docker = get_client()
     collection = ServiceCollection()
     collection.load_definitions(exclude=exclude)
@@ -161,5 +162,5 @@ def start_services(create_new, exclude, network_name, timeout):
     if not existing_network:
         network = docker.networks.create(network_name, driver="bridge")
         logger.info("Created network %s", network_name)
-    service_names = collection.start_all(Options(create_new, network_name, timeout))
+    service_names = collection.start_all(Options(run_new_containers, network_name, timeout))
     logger.info("Started services: %s", ",".join(service_names))

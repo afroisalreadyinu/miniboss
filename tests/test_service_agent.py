@@ -26,7 +26,7 @@ class FakeService:
     dependencies = []
     ports = {}
     env = {}
-    pinged = False
+    always_start_new = False
 
     def __init__(self, fail_ping=False, exception_at_init=None):
         self.fail_ping = fail_ping
@@ -74,6 +74,47 @@ class ServiceAgentTests(unittest.TestCase):
         assert len(self.docker._containers_started) == 0
 
 
+    def test_start_old_container_if_exists(self):
+        agent = ServiceAgent(FakeService(), None, DEFAULT_OPTIONS)
+        restarted = False
+        def start():
+            nonlocal restarted
+            restarted = True
+        self.docker._existing_containers = [Bunch(status='exited', start=start)]
+        agent.run_image()
+        assert len(self.docker._containers_created) == 0
+        assert len(self.docker._containers_started) == 0
+        assert restarted
+
+
+    def test_start_new_if_run_new_containers(self):
+        agent = ServiceAgent(FakeService(), None, Options(True, 'the-network', 1))
+        restarted = False
+        def start():
+            nonlocal restarted
+            restarted = True
+        self.docker._existing_containers = [Bunch(status='exited', start=start)]
+        agent.run_image()
+        assert len(self.docker._containers_created) == 1
+        assert len(self.docker._containers_started) == 1
+        assert not restarted
+
+
+    def test_start_new_if_always_strat_new(self):
+        service = FakeService()
+        service.always_start_new = True
+        agent = ServiceAgent(service, None, Options(True, 'the-network', 1))
+        restarted = False
+        def start():
+            nonlocal restarted
+            restarted = True
+        self.docker._existing_containers = [Bunch(status='exited', start=start)]
+        agent.run_image()
+        assert len(self.docker._containers_created) == 1
+        assert len(self.docker._containers_started) == 1
+        assert not restarted
+
+
     def test_ping_and_init_after_run(self):
         fake_collection = FakeServiceCollection()
         fake_service = FakeService()
@@ -113,11 +154,3 @@ class ServiceAgentTests(unittest.TestCase):
         assert fake_service.ping_count > 0
         assert fake_collection.started_service is None
         assert fake_collection.failed_service == 'service1'
-
-
-    def test_start_old_container_if_exists(self):
-        assert False, "to be written"
-
-
-    def test_new_if_create_new_true(self):
-        assert False, "to be written"
