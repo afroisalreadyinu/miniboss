@@ -37,6 +37,8 @@ class ServiceAgent(threading.Thread):
 
     def run_image(self):
         client = get_client()
+        # If there are any running with the name prefix, connected to the same
+        # network, skip creating
         container_name = "{:s}-drillmaster-{:s}".format(self.service.name,
                                                         ''.join(random.sample(DIGITS, 4)))
         networking_config = client.api.create_networking_config({
@@ -60,6 +62,7 @@ class ServiceAgent(threading.Thread):
         while time.monotonic() - start < self.options.timeout:
             if self.service.ping():
                 return True
+            time.sleep(0.1)
         logger.error("Could not ping service with timeout of {}".format(self.options.timeout))
         return False
 
@@ -69,6 +72,7 @@ class ServiceAgent(threading.Thread):
             if not self.ping():
                 self.collection.service_failed(self.service.name)
                 return
+            self.service.post_start_init()
             self.collection.start_next(self.service.name)
         except:
             logger.exception("Error starting service")

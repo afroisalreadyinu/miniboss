@@ -1,5 +1,4 @@
 import unittest
-import uuid
 from types import SimpleNamespace as Bunch
 
 import pytest
@@ -13,6 +12,7 @@ from drillmaster.services import (Service,
 from drillmaster.service_agent import Options
 from drillmaster import services, service_agent
 
+from common import MockDocker
 
 class RunningContextTests(unittest.TestCase):
 
@@ -36,38 +36,6 @@ class RunningContextTests(unittest.TestCase):
         context.service_started('service1')
         context.service_started('service2')
         assert context.done
-
-
-class MockDocker:
-    def __init__(self):
-        parent = self
-        self._networks = []
-        self._networking_configs = None
-        self._networks_created = []
-        self._containers_created = {}
-        self._containers_started = []
-
-        class Networks:
-            def list(self, names):
-                return [x for x in parent._networks if x in names]
-            def create(self, network_name, driver=None):
-                parent._networks_created.append((network_name, driver))
-        self.networks = Networks()
-
-        class API:
-            def create_networking_config(self, networking_dict):
-                parent._networking_configs = networking_dict
-            def create_host_config(*args, **kwargs):
-                pass
-            def create_endpoint_config(self, aliases=None):
-                pass
-            def create_container(self, image, **kwargs):
-                _id = str(uuid.uuid4())
-                parent._containers_created[_id] = {'image': image, **kwargs}
-                return {'Id': _id}
-            def start(self, container_id):
-                parent._containers_started.append(container_id)
-        self.api = API()
 
 
 class ServiceDefinitionTests(unittest.TestCase):
@@ -105,36 +73,6 @@ class ServiceDefinitionTests(unittest.TestCase):
                 name = "yes"
                 image = "yes"
                 env = "no"
-
-
-class ServiceAgentTests(unittest.TestCase):
-
-    def setUp(self):
-        self.docker = MockDocker()
-        def get_fake_client():
-            return self.docker
-        service_agent.get_client = get_fake_client
-
-
-    def test_can_start(self):
-        service1 = Bunch(name='service1', dependencies=[])
-        service2 = Bunch(name='service2', dependencies=[service1])
-        agent = ServiceAgent(service2, None, Options(False, 'the-network', 50))
-        assert agent.can_start is False
-
-    def test_run_image(self):
-        service1 = Bunch(name='service1', dependencies=[])
-        agent = ServiceAgent(Bunch(name='service2',
-                                   image='service/two',
-                                   ports={4040 : 4050},
-                                   env={'blah': 'yada'},
-                                   dependencies=[service1]),
-                             None,
-                             Options(False, 'the-network', 50))
-        agent.run_image()
-        assert len(self.docker._containers_created) == 1
-        assert len(self.docker._containers_started) == 1
-
 
 
 class ServiceCollectionTests(unittest.TestCase):
@@ -245,8 +183,15 @@ class ServiceCollectionTests(unittest.TestCase):
         assert len(collection) == 2
 
 
-    #@patch('drillmaster.services.threading.Thread')
+    def test_error_on_dependency_excluded(self):
+        assert False, "to be written"
+
+
     def test_start_all(self):
+        # This test does not fake threading, which is somehow dangerous, but the
+        # aim is to make sure that the error handling etc. works also when there
+        # is an exception in the service agent thread, and the
+        # collection.start_all method does not hang.
         collection = ServiceCollection()
         class NewServiceBaseFour(Service):
             name = "not used"
@@ -274,6 +219,15 @@ class ServiceCollectionTests(unittest.TestCase):
         first_cont = self.docker._containers_created[first_cont_id]
         assert first_cont['image'] == 'howareyou/image'
         assert first_cont['name'].startswith('howareyou')
+
+
+    def test_stop_on_fail(self):
+        assert False, "to be written"
+
+
+    def test_start_next(self):
+        # with lock stuff
+        assert False, "to be written"
 
 
 class ServiceCommandTests(unittest.TestCase):

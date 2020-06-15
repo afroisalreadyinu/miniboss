@@ -58,7 +58,7 @@ class Service(metaclass=ServiceMeta):
     def ping(self):
         return True
 
-    def post_init(self):
+    def post_start_init(self):
         pass
 
 class RunningContext:
