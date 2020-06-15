@@ -60,16 +60,19 @@ class ServiceAgentTests(unittest.TestCase):
         assert agent.can_start is False
 
     def test_run_image(self):
-        service1 = Bunch(name='service1', dependencies=[])
-        agent = ServiceAgent(Bunch(name='service2',
-                                   image='service/two',
-                                   ports={4040 : 4050},
-                                   env={'blah': 'yada'},
-                                   dependencies=[service1]),
-                             None, DEFAULT_OPTIONS)
+        agent = ServiceAgent(FakeService(), None, DEFAULT_OPTIONS)
         agent.run_image()
         assert len(self.docker._containers_created) == 1
         assert len(self.docker._containers_started) == 1
+
+
+    def test_skip_if_running_on_same_network(self):
+        agent = ServiceAgent(FakeService(), None, DEFAULT_OPTIONS)
+        self.docker._existing_containers = [Bunch(status='running')]
+        agent.run_image()
+        assert len(self.docker._containers_created) == 0
+        assert len(self.docker._containers_started) == 0
+
 
     def test_ping_and_init_after_run(self):
         fake_collection = FakeServiceCollection()
@@ -110,10 +113,6 @@ class ServiceAgentTests(unittest.TestCase):
         assert fake_service.ping_count > 0
         assert fake_collection.started_service is None
         assert fake_collection.failed_service == 'service1'
-
-
-    def test_skip_if_running_on_same_network(self):
-        assert False, "to be written"
 
 
     def test_start_old_container_if_exists(self):

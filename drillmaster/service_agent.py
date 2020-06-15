@@ -39,8 +39,17 @@ class ServiceAgent(threading.Thread):
         client = get_client()
         # If there are any running with the name prefix, connected to the same
         # network, skip creating
-        container_name = "{:s}-drillmaster-{:s}".format(self.service.name,
-                                                        ''.join(random.sample(DIGITS, 4)))
+        container_name_prefix = "{:s}-drillmaster".format(self.service.name)
+        existings = client.containers.list(all=True,
+                                          filters={'status': 'running',
+                                                   'name': container_name_prefix,
+                                                   'network': 'link-testing'})
+        if existings:
+            existing = existings[0]
+            if existing.status == 'running':
+                logger.info("There is an existing container for %s, not starting a new one", self.service.name)
+                return
+        container_name = "{:s}-{:s}".format(container_name_prefix, ''.join(random.sample(DIGITS, 4)))
         networking_config = client.api.create_networking_config({
             self.options.network_name: client.api.create_endpoint_config(aliases=[self.service.name])
         })
