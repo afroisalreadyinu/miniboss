@@ -15,6 +15,13 @@ class Options(NamedTuple):
     network_name: str
     timeout: int
 
+class AgentStatus:
+    NULL = 'null'
+    IN_PROGRESS = 'in-progress'
+    STARTED = 'started'
+    FAILED = 'failed'
+
+
 class ServiceAgent(threading.Thread):
 
     def __init__(self, service, collection, options: Options):
@@ -25,6 +32,7 @@ class ServiceAgent(threading.Thread):
         self.collection = collection
         self.options = options
         self.open_dependencies = [x.name for x in service.dependencies]
+        self.status = AgentStatus.NULL
 
     @property
     def can_start(self):
@@ -81,6 +89,7 @@ class ServiceAgent(threading.Thread):
         return False
 
     def run(self):
+        self.status = AgentStatus.IN_PROGRESS
         try:
             self.run_image()
             if not self.ping():
@@ -91,3 +100,6 @@ class ServiceAgent(threading.Thread):
         except:
             logger.exception("Error starting service")
             self.collection.service_failed(self.service.name)
+            self.status = AgentStatus.FAILED
+        else:
+            self.status = AgentStatus.STARTED

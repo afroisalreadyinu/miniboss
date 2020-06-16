@@ -66,6 +66,28 @@ class ServiceAgentTests(unittest.TestCase):
         assert len(self.docker._containers_started) == 1
 
 
+    def test_agent_status_change_happy_path(self):
+        class ServiceAgentTestSubclass(ServiceAgent):
+            def ping(self):
+                assert self.status == 'in-progress'
+                return super().ping()
+        agent = ServiceAgentTestSubclass(FakeService(), FakeServiceCollection(), DEFAULT_OPTIONS)
+        assert agent.status == 'null'
+        agent.run()
+        assert agent.status == 'started'
+
+
+    def test_agent_status_change_sad_path(self):
+        class ServiceAgentTestSubclass(ServiceAgent):
+            def ping(self):
+                assert self.status == 'in-progress'
+                raise ValueError("I failed miserably")
+        agent = ServiceAgentTestSubclass(FakeService(), FakeServiceCollection(), DEFAULT_OPTIONS)
+        assert agent.status == 'null'
+        agent.run()
+        assert agent.status == 'failed'
+
+
     def test_skip_if_running_on_same_network(self):
         agent = ServiceAgent(FakeService(), None, DEFAULT_OPTIONS)
         self.docker._existing_containers = [Bunch(status='running')]

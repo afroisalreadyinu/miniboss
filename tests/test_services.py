@@ -29,12 +29,11 @@ class RunningContextTests(unittest.TestCase):
 
     def test_done(self):
         collection = object()
-        service1 = Bunch(name='service1', dependencies=[])
-        service2 = Bunch(name='service2', dependencies=[service1])
+        service1 = Bunch(name='service1', status='started', dependencies=[])
+        service2 = Bunch(name='service2', status='started', dependencies=[service1])
         context = RunningContext({'service1': service1, 'service2': service2},
                                  collection, Options(False, 'the-network', 50))
-        context.service_started('service1')
-        context.service_started('service2')
+
         assert context.done
 
 
@@ -86,24 +85,24 @@ class ServiceCollectionTests(unittest.TestCase):
 
     def test_raise_exception_on_no_services(self):
         collection = ServiceCollection()
-        class NewServiceBaseSix(Service):
+        class NewServiceBase(Service):
             name = "not used"
             image = "not used"
-        collection._base_class = NewServiceBaseSix
+        collection._base_class = NewServiceBase
         with pytest.raises(ServiceLoadError):
             collection.load_definitions()
 
     def test_raise_exception_on_same_name(self):
         collection = ServiceCollection()
-        class NewServiceBaseOne(Service):
+        class NewServiceBase(Service):
             name = "not used"
             image = "not used"
 
-        collection._base_class = NewServiceBaseOne
-        class ServiceOne(NewServiceBaseOne):
+        collection._base_class = NewServiceBase
+        class ServiceOne(NewServiceBase):
             name = "hello"
             image = "hello"
-        class ServiceTwo(NewServiceBaseOne):
+        class ServiceTwo(NewServiceBase):
             name = "hello"
             image = "hello"
         with pytest.raises(ServiceLoadError):
@@ -112,21 +111,21 @@ class ServiceCollectionTests(unittest.TestCase):
 
     def test_raise_exception_on_circular_dependency(self):
         collection = ServiceCollection()
-        class NewServiceBaseTwo(Service):
+        class NewServiceBase(Service):
             name = "not used"
             image = "not used"
-        collection._base_class = NewServiceBaseTwo
-        class ServiceOne(NewServiceBaseTwo):
+        collection._base_class = NewServiceBase
+        class ServiceOne(NewServiceBase):
             name = "hello"
             image = "hello"
             dependencies = ["howareyou"]
 
-        class ServiceTwo(NewServiceBaseTwo):
+        class ServiceTwo(NewServiceBase):
             name = "goodbye"
             image = "hello"
             dependencies = ["hello"]
 
-        class ServiceThree(NewServiceBaseTwo):
+        class ServiceThree(NewServiceBase):
             name = "howareyou"
             image = "hello"
             dependencies = ["goodbye"]
@@ -137,21 +136,21 @@ class ServiceCollectionTests(unittest.TestCase):
 
     def test_load_services(self):
         collection = ServiceCollection()
-        class NewServiceBaseThree(Service):
+        class NewServiceBase(Service):
             name = "not used"
             image = "not used"
-        collection._base_class = NewServiceBaseThree
-        class ServiceOne(NewServiceBaseThree):
+        collection._base_class = NewServiceBase
+        class ServiceOne(NewServiceBase):
             name = "hello"
             image = "hello"
             dependencies = ["howareyou"]
 
-        class ServiceTwo(NewServiceBaseThree):
+        class ServiceTwo(NewServiceBase):
             name = "goodbye"
             image = "hello"
             dependencies = ["hello"]
 
-        class ServiceThree(NewServiceBaseThree):
+        class ServiceThree(NewServiceBase):
             name = "howareyou"
             image = "hello"
 
@@ -161,21 +160,21 @@ class ServiceCollectionTests(unittest.TestCase):
 
     def test_load_services_exclude(self):
         collection = ServiceCollection()
-        class NewServiceBaseFive(Service):
+        class NewServiceBase(Service):
             name = "not used"
             image = "not used"
-        collection._base_class = NewServiceBaseFive
-        class ServiceOne(NewServiceBaseFive):
+        collection._base_class = NewServiceBase
+        class ServiceOne(NewServiceBase):
             name = "hello"
             image = "hello"
             dependencies = ["howareyou"]
 
-        class ServiceTwo(NewServiceBaseFive):
+        class ServiceTwo(NewServiceBase):
             name = "goodbye"
             image = "hello"
             dependencies = ["hello"]
 
-        class ServiceThree(NewServiceBaseFive):
+        class ServiceThree(NewServiceBase):
             name = "howareyou"
             image = "hello"
 
@@ -184,7 +183,27 @@ class ServiceCollectionTests(unittest.TestCase):
 
 
     def test_error_on_dependency_excluded(self):
-        assert False, "to be written"
+        collection = ServiceCollection()
+        class NewServiceBase(Service):
+            name = "not used"
+            image = "not used"
+        collection._base_class = NewServiceBase
+        class ServiceOne(NewServiceBase):
+            name = "hello"
+            image = "hello"
+            dependencies = ["howareyou"]
+
+        class ServiceTwo(NewServiceBase):
+            name = "goodbye"
+            image = "hello"
+            dependencies = ["hello"]
+
+        class ServiceThree(NewServiceBase):
+            name = "howareyou"
+            image = "hello"
+
+        with pytest.raises(ServiceLoadError):
+            collection.load_definitions(exclude=['hello'])
 
 
     def test_start_all(self):
@@ -193,21 +212,21 @@ class ServiceCollectionTests(unittest.TestCase):
         # is an exception in the service agent thread, and the
         # collection.start_all method does not hang.
         collection = ServiceCollection()
-        class NewServiceBaseFour(Service):
+        class NewServiceBase(Service):
             name = "not used"
             image = "not used"
-        collection._base_class = NewServiceBaseFour
-        class ServiceOne(NewServiceBaseFour):
+        collection._base_class = NewServiceBase
+        class ServiceOne(NewServiceBase):
             name = "hello"
             image = "hello/image"
             dependencies = ["howareyou"]
 
-        class ServiceTwo(NewServiceBaseFour):
+        class ServiceTwo(NewServiceBase):
             name = "goodbye"
             image = "goodbye/image"
             dependencies = ["hello"]
 
-        class ServiceThree(NewServiceBaseFour):
+        class ServiceThree(NewServiceBase):
             name = "howareyou"
             image = "howareyou/image"
         collection.load_definitions()
@@ -222,7 +241,19 @@ class ServiceCollectionTests(unittest.TestCase):
 
 
     def test_stop_on_fail(self):
-        assert False, "to be written"
+        collection = ServiceCollection()
+        class NewServiceBase(Service):
+            name = "not used"
+            image = "not used"
+        class ServiceThree(NewServiceBase):
+            name = "howareyou"
+            image = "howareyou/image"
+            def ping(self):
+                raise ValueError("I failed miserably")
+        collection._base_class = NewServiceBase
+        collection.load_definitions()
+        collection.start_all(Opions(False, 'the-network', 50))
+        assert collection.failed
 
 
     def test_start_next(self):

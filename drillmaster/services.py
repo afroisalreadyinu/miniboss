@@ -10,7 +10,7 @@ import furl
 import requests.exceptions
 
 from drillmaster.docker_client import get_client
-from drillmaster.service_agent import ServiceAgent, Options
+from drillmaster.service_agent import ServiceAgent, Options, AgentStatus
 
 logging.basicConfig(
     level=logging.INFO,
@@ -73,7 +73,7 @@ class RunningContext:
 
     @property
     def done(self):
-        return not bool(self.waiting_agents)
+        return all(x.status == AgentStatus.STARTED for x in self.service_agents.values())
 
     def service_started(self, started_service):
         self.service_agents.pop(started_service)
