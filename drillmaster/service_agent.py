@@ -15,6 +15,11 @@ class Options(NamedTuple):
     network_name: str
     timeout: int
 
+class StopOptions(NamedTuple):
+    network_name: str
+    remove: bool
+    timeout: int
+
 class AgentStatus:
     NULL = 'null'
     IN_PROGRESS = 'in-progress'

@@ -10,7 +10,10 @@ import furl
 import requests.exceptions
 
 from drillmaster.docker_client import get_client
-from drillmaster.service_agent import ServiceAgent, Options, AgentStatus
+from drillmaster.service_agent import (ServiceAgent,
+                                       Options,
+                                       StopOptions,
+                                       AgentStatus)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -153,19 +156,19 @@ class ServiceCollection:
         if self.failed:
             logger.error("Failed to start all services")
 
-    def stop_all(self, network_name, remove):
+    def stop_all(self, options: StopOptions):
         docker = get_client()
         service_names = self.all_by_name.keys()
         for name in service_names:
             prefix = "{}-drillmaster".format(name)
-            existings = docker.containers.list(all=True, filters={'network': network_name,
+            existings = docker.containers.list(all=True, filters={'network': options.network_name,
                                                                   'name': prefix})
             for existing in existings:
                 if existing.status == 'running':
-                    existing.stop(timeout=timeout)
-                if remove:
+                    existing.stop(timeout=options.timeout)
+                if options.remove:
                     existing.remove()
-        if remove:
+        if options.remove:
             docker.networks.remove(network_name)
 
 
@@ -180,9 +183,11 @@ def start_services(run_new_containers, exclude, network_name, timeout):
     service_names = collection.start_all(Options(run_new_containers, network_name, timeout))
     logger.info("Started services: %s", ",".join(service_names))
 
-def stop_services(exclude, network_name, remove):
+
+def stop_services(exclude, network_name, remove, timeout):
     logger.info("Stopping services (excluded: %s)", "none" if not exclude else ",".join(exclude))
+    options = StopOptions(network_name, remove, timeout)
     docker = get_client()
     collection = ServiceCollection()
     collection.load_definitions(exclude=exclude)
-    collection.stop_all(network_name, remove)
+    collection.stop_all(options)

@@ -10,7 +10,7 @@ from drillmaster.services import (Service,
                                   ServiceCollection,
                                   ServiceAgent,
                                   ServiceDefinitionError)
-from drillmaster.service_agent import Options
+from drillmaster.service_agent import Options, StopOptions
 from drillmaster import services, service_agent
 
 from common import MockDocker
@@ -290,6 +290,21 @@ class ServiceCollectionTests(unittest.TestCase):
 
 
     def test_stop_all_remove_false(self):
+        class FakeService(Bunch):
+            def stop(self, timeout):
+                self.stopped = True
+                self.timeout = timeout
+            def remove(self):
+                self.removed = True
+        service1 = FakeService(name='service1-drillmaster-1234',
+                               stopped=False,
+                               removed=False,
+                               status='running')
+        service2 = FakeService(name='service2-drillmaster-5678',
+                               stopped=False,
+                               removed=False,
+                               status='exited')
+        self.docker._existing_containers = [service1, service2]
         collection = ServiceCollection()
         class NewServiceBase(Service):
             name = "not used"
@@ -305,7 +320,11 @@ class ServiceCollectionTests(unittest.TestCase):
 
         collection._base_class = NewServiceBase
         collection.load_definitions()
-        collection.stop_all('drillmaster', False)
+        collection.stop_all(StopOptions('drillmaster', False, 50))
+        assert service1.stopped
+        assert service1.timeout == 50
+
+        assert not service2.stopped
 
 
 class ServiceCommandTests(unittest.TestCase):

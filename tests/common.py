@@ -20,20 +20,28 @@ class MockDocker:
 
         class Containers:
             def list(self, *args, **kwargs):
+                if 'name' in kwargs:
+                    return [x for x in parent._existing_containers
+                            if kwargs['name'] in x.name]
                 return parent._existing_containers
         self.containers= Containers()
 
         class API:
+
             def create_networking_config(self, networking_dict):
                 parent._networking_configs = networking_dict
+
             def create_host_config(*args, **kwargs):
                 pass
+
             def create_endpoint_config(self, aliases=None):
                 pass
+
             def create_container(self, image, **kwargs):
                 _id = str(uuid.uuid4())
                 parent._containers_created[_id] = {'image': image, **kwargs}
                 return {'Id': _id}
+
             def start(self, container_id):
                 parent._containers_started.append(container_id)
         self.api = API()
