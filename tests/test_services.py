@@ -1,4 +1,5 @@
 import unittest
+from unittest.mock import patch
 from types import SimpleNamespace as Bunch
 
 import pytest
@@ -29,13 +30,16 @@ class RunningContextTests(unittest.TestCase):
 
     def test_done(self):
         collection = object()
-        service1 = Bunch(name='service1', status='started', dependencies=[])
-        service2 = Bunch(name='service2', status='started', dependencies=[service1])
+        service1 = Bunch(name='service1', dependencies=[])
+        service2 = Bunch(name='service2', dependencies=[])
         context = RunningContext({'service1': service1, 'service2': service2},
                                  collection, Options(False, 'the-network', 50))
-
+        agents = list(context.service_agents.values())
+        assert not context.done
+        agents[0].status = 'in-progress'
+        assert not context.done
+        agents[0].status = agents[1].status = 'started'
         assert context.done
-
 
 class ServiceDefinitionTests(unittest.TestCase):
 
@@ -245,20 +249,44 @@ class ServiceCollectionTests(unittest.TestCase):
         class NewServiceBase(Service):
             name = "not used"
             image = "not used"
-        class ServiceThree(NewServiceBase):
+        class TheService(NewServiceBase):
             name = "howareyou"
             image = "howareyou/image"
             def ping(self):
                 raise ValueError("I failed miserably")
         collection._base_class = NewServiceBase
         collection.load_definitions()
-        collection.start_all(Opions(False, 'the-network', 50))
+        collection.start_all(Options(False, 'the-network', 50))
         assert collection.failed
 
 
-    def test_start_next(self):
-        # with lock stuff
-        assert False, "to be written"
+    @patch('drillmaster.services.threading')
+    def test_start_next_lock_call(self, mock_threading):
+        collection = ServiceCollection()
+        class NewServiceBase(Service):
+            name = "not used"
+            image = "not used"
+
+        class ServiceOne(NewServiceBase):
+            name = "service1"
+            image = "howareyou/image"
+
+        class ServiceTwo(NewServiceBase):
+            name = "service2"
+            image = "howareyou/image"
+            dependencies = ['service1']
+
+        class ServiceThree(NewServiceBase):
+            name = "service3"
+            image = "howareyou/image"
+            dependencies = ['service1']
+
+        collection._base_class = NewServiceBase
+        collection.load_definitions()
+        collection.start_all(Options(False, 'the-network', 50))
+        mock_lock = mock_threading.Lock.return_value
+        # This has to be 3 because start_next is called after each service
+        assert mock_lock.__enter__.call_count == 3
 
 
 class ServiceCommandTests(unittest.TestCase):
@@ -286,10 +314,10 @@ class ServiceCommandTests(unittest.TestCase):
         self.docker._networks = ["drillmaster"]
         services.start_services(True, [], "drillmaster", 50)
         assert self.docker._networks_created == []
-        assert self.collection.options.create_new
+        assert self.collection.options.run_new_containers
         assert self.collection.options.timeout == 50
 
     def test_start_service_exclude(self):
         services.start_services(True, ['blah'], "drillmaster", 50)
         assert self.collection.excluded == ['blah']
-        assert self.collection.options.create_new
+        assert self.collection.options.run_new_containers
