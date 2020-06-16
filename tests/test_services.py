@@ -289,6 +289,25 @@ class ServiceCollectionTests(unittest.TestCase):
         assert mock_lock.__enter__.call_count == 3
 
 
+    def test_stop_all_remove_false(self):
+        collection = ServiceCollection()
+        class NewServiceBase(Service):
+            name = "not used"
+            image = "not used"
+
+        class ServiceOne(NewServiceBase):
+            name = "service1"
+            image = "howareyou/image"
+
+        class ServiceTwo(NewServiceBase):
+            name = "service2"
+            image = "howareyou/image"
+
+        collection._base_class = NewServiceBase
+        collection.load_definitions()
+        collection.stop_all('drillmaster', False)
+
+
 class ServiceCommandTests(unittest.TestCase):
 
     def setUp(self):
@@ -302,6 +321,9 @@ class ServiceCommandTests(unittest.TestCase):
             def start_all(self, options):
                 self.options = options
                 return ["one", "two"]
+            def stop_all(self, network_name, remove):
+                self.options = (network_name, remove)
+                self.stopped = True
         self.collection = MockServiceCollection()
         services.ServiceCollection = lambda: self.collection
 
@@ -321,3 +343,7 @@ class ServiceCommandTests(unittest.TestCase):
         services.start_services(True, ['blah'], "drillmaster", 50)
         assert self.collection.excluded == ['blah']
         assert self.collection.options.run_new_containers
+
+    def test_stop_services(self):
+        services.stop_services([], "drillmaster", False)
+        assert self.collection.options == ('drillmaster', False)

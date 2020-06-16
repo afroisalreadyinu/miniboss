@@ -18,8 +18,7 @@ def start(run_new_containers, exclude, network_name, timeout):
 
 @cli.command()
 @click.option("--exclude", help="Names of services to exclude (comma-separated)")
-@click.option("--purge", default=False, help="Remove container images and network")
-def stop(exclude, service_definition_file):
-    for container in containers.values():
-        d.api.stop(container)
-        d.api.remove_container(container)
+@click.option("--network-name", default="drillmaster-network", help="Network to use")
+@click.option("--remove", default=False, help="Remove container images and network")
+def stop(exclude, network_name, remove):
+    services.stop_services(exclude, network_name, remove)

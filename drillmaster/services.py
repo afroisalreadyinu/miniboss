@@ -153,9 +153,24 @@ class ServiceCollection:
         if self.failed:
             logger.error("Failed to start all services")
 
+    def stop_all(self, network_name, remove):
+        docker = get_client()
+        service_names = self.all_by_name.keys()
+        for name in service_names:
+            prefix = "{}-drillmaster".format(name)
+            existings = docker.containers.list(all=True, filters={'network': network_name,
+                                                                  'name': prefix})
+            for existing in existings:
+                if existing.status == 'running':
+                    existing.stop(timeout=timeout)
+                if remove:
+                    existing.remove()
+        if remove:
+            docker.networks.remove(network_name)
+
+
 
 def start_services(run_new_containers, exclude, network_name, timeout):
-    docker = get_client()
     collection = ServiceCollection()
     collection.load_definitions(exclude=exclude)
     existing_network = docker.networks.list(names=[network_name])
@@ -164,3 +179,10 @@ def start_services(run_new_containers, exclude, network_name, timeout):
         logger.info("Created network %s", network_name)
     service_names = collection.start_all(Options(run_new_containers, network_name, timeout))
     logger.info("Started services: %s", ",".join(service_names))
+
+def stop_services(exclude, network_name, remove):
+    logger.info("Stopping services (excluded: %s)", "none" if not exclude else ",".join(exclude))
+    docker = get_client()
+    collection = ServiceCollection()
+    collection.load_definitions(exclude=exclude)
+    collection.stop_all(network_name, remove)
