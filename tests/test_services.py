@@ -234,7 +234,8 @@ class ServiceCollectionTests(unittest.TestCase):
             name = "howareyou"
             image = "howareyou/image"
         collection.load_definitions()
-        collection.start_all(Options(False, 'the-network', 50))
+        retval = collection.start_all(Options(False, 'the-network', 50))
+        assert set(retval) == {"hello", "goodbye", "howareyou"}
         assert len(self.docker._containers_created) == 3
         assert len(self.docker._containers_started) == 3
         # The one without dependencies should have been started first

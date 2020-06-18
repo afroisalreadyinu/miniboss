@@ -154,6 +154,7 @@ class ServiceCollection:
             time.sleep(0.05)
         if self.failed:
             logger.error("Failed to start all services")
+        return list(self.all_by_name.keys())
 
     def stop_all(self, options: StopOptions):
         docker = get_client()
