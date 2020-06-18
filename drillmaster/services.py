@@ -166,13 +166,16 @@ class ServiceCollection:
             for existing in existings:
                 if existing.status == 'running':
                     existing.stop(timeout=options.timeout)
+                    logging.info("Stopped container %s", existing.name)
                 if options.remove:
+                    logging.info("Removed container %s", existing.name)
                     existing.remove()
         if options.remove:
             networks = docker.networks.list(names=[options.network_name])
             if networks:
-                assert networks, "No network named {}".format(options.network_name)
                 networks[0].remove()
+                logging.info("Removed network %s", options.network_name)
+
 
 
 

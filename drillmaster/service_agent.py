@@ -82,6 +82,7 @@ class ServiceAgent(threading.Thread):
             host_config=host_config,
             networking_config=networking_config)
         client.api.start(container.get('Id'))
+        logger.info("Started container for service %s", self.service.name)
         return container
 
 
@@ -89,6 +90,7 @@ class ServiceAgent(threading.Thread):
         start = time.monotonic()
         while time.monotonic() - start < self.options.timeout:
             if self.service.ping():
+                logger.info("Service %s pinged successfully", self.service.name)
                 return True
             time.sleep(0.1)
         logger.error("Could not ping service with timeout of {}".format(self.options.timeout))
@@ -108,4 +110,5 @@ class ServiceAgent(threading.Thread):
             self.collection.service_failed(self.service.name)
             self.status = AgentStatus.FAILED
         else:
+            logger.info("Service %s started successfully", self.service.name)
             self.status = AgentStatus.STARTED
