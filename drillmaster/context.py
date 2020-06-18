@@ -3,7 +3,9 @@ class ContextError(Exception):
 
 class _Context(dict):
 
-    def extrapolate(self, env_value: str):
+    def extrapolate(self, env_value):
+        if not hasattr(env_value, "format"):
+            return env_value
         try:
             return env_value.format(**self)
         except KeyError:

@@ -11,6 +11,10 @@ class ContextTests(unittest.TestCase):
         output = context.extrapolate("Say {yada} to {blah}")
         assert output == "Say hello to 123"
 
+    def test_extrapolate_nonstring(self):
+        context = _Context(blah=123, yada="hello")
+        assert 20 == context.extrapolate(20)
+
     def test_extrapolate_key_missing(self):
         context = _Context(blah=123, yada="hello")
         with pytest.raises(ContextError):
@@ -32,6 +36,8 @@ class ContextTests(unittest.TestCase):
     def test_extrapolate_values(self):
         context = _Context(blah=123, yada="hello")
         output = context.extrapolate_values({'key1': 'This is {blah}',
-                                             'key2': 'And this is {yada}'})
+                                             'key2': 'And this is {yada}',
+                                             'key3': 456})
         assert output == {'key1': 'This is 123',
-                          'key2': 'And this is hello'}
+                          'key2': 'And this is hello',
+                          'key3': 456}
