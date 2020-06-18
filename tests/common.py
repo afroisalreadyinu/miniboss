@@ -13,7 +13,7 @@ class MockDocker:
 
         class Networks:
             def list(self, names):
-                return [x for x in parent._networks if x in names]
+                return [x for x in parent._networks if x.name in names]
             def create(self, network_name, driver=None):
                 parent._networks_created.append((network_name, driver))
         self.networks = Networks()

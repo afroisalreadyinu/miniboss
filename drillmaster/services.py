@@ -169,11 +169,14 @@ class ServiceCollection:
                 if options.remove:
                     existing.remove()
         if options.remove:
-            docker.networks.remove(network_name)
+            networks = docker.networks.list(names=[options.network_name])
+            assert networks, "No network named {}".format(options.network_name)
+            networks[0].remove()
 
 
 
 def start_services(run_new_containers, exclude, network_name, timeout):
+    docker = get_client()
     collection = ServiceCollection()
     collection.load_definitions(exclude=exclude)
     existing_network = docker.networks.list(names=[network_name])

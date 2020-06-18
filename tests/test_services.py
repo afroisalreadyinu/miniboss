@@ -290,21 +290,21 @@ class ServiceCollectionTests(unittest.TestCase):
 
 
     def test_stop_all_remove_false(self):
-        class FakeService(Bunch):
+        class FakeContainer(Bunch):
             def stop(self, timeout):
                 self.stopped = True
                 self.timeout = timeout
             def remove(self):
                 self.removed = True
-        service1 = FakeService(name='service1-drillmaster-1234',
-                               stopped=False,
-                               removed=False,
-                               status='running')
-        service2 = FakeService(name='service2-drillmaster-5678',
-                               stopped=False,
-                               removed=False,
-                               status='exited')
-        self.docker._existing_containers = [service1, service2]
+        container1 = FakeContainer(name='service1-drillmaster-1234',
+                                   stopped=False,
+                                   removed=False,
+                                   status='running')
+        container2 = FakeContainer(name='service2-drillmaster-5678',
+                                   stopped=False,
+                                   removed=False,
+                                   status='exited')
+        self.docker._existing_containers = [container1, container2]
         collection = ServiceCollection()
         class NewServiceBase(Service):
             name = "not used"
@@ -321,10 +321,49 @@ class ServiceCollectionTests(unittest.TestCase):
         collection._base_class = NewServiceBase
         collection.load_definitions()
         collection.stop_all(StopOptions('drillmaster', False, 50))
-        assert service1.stopped
-        assert service1.timeout == 50
+        assert container1.stopped
+        assert container1.timeout == 50
+        assert not container2.stopped
 
-        assert not service2.stopped
+    def test_stop_and_remove(self):
+        class FakeContainer(Bunch):
+            def stop(self, timeout):
+                self.stopped = True
+                self.timeout = timeout
+            def remove(self):
+                self.removed = True
+        container1 = FakeContainer(name='service1-drillmaster-1234',
+                                   stopped=False,
+                                   removed=False,
+                                   status='running')
+        container2 = FakeContainer(name='service2-drillmaster-5678',
+                                   stopped=False,
+                                   removed=False,
+                                   status='exited')
+        self.docker._existing_containers = [container1, container2]
+        collection = ServiceCollection()
+        class NewServiceBase(Service):
+            name = "not used"
+            image = "not used"
+
+        class ServiceOne(NewServiceBase):
+            name = "service1"
+            image = "howareyou/image"
+
+        class ServiceTwo(NewServiceBase):
+            name = "service2"
+            image = "howareyou/image"
+        collection._base_class = NewServiceBase
+        class FakeNetwork(Bunch):
+            def remove(self):
+                self.removed = True
+
+        self.docker._networks = [FakeNetwork(name='drillmaster-network', id=12345, removed=False)]
+        collection.load_definitions()
+        collection.stop_all(StopOptions('drillmaster-network', True, 50))
+        assert container1.stopped
+        assert container1.timeout == 50
+        assert not container2.stopped
 
 
 class ServiceCommandTests(unittest.TestCase):
@@ -340,8 +379,8 @@ class ServiceCommandTests(unittest.TestCase):
             def start_all(self, options):
                 self.options = options
                 return ["one", "two"]
-            def stop_all(self, network_name, remove):
-                self.options = (network_name, remove)
+            def stop_all(self, options):
+                self.options = options
                 self.stopped = True
         self.collection = MockServiceCollection()
         services.ServiceCollection = lambda: self.collection
@@ -352,7 +391,7 @@ class ServiceCommandTests(unittest.TestCase):
 
 
     def test_start_service_skip_service_creation_if_exists(self):
-        self.docker._networks = ["drillmaster"]
+        self.docker._networks = [Bunch(name="drillmaster", id=12345)]
         services.start_services(True, [], "drillmaster", 50)
         assert self.docker._networks_created == []
         assert self.collection.options.run_new_containers
@@ -364,5 +403,7 @@ class ServiceCommandTests(unittest.TestCase):
         assert self.collection.options.run_new_containers
 
     def test_stop_services(self):
-        services.stop_services([], "drillmaster", False)
-        assert self.collection.options == ('drillmaster', False)
+        services.stop_services([], "drillmaster", False, 50)
+        assert self.collection.options.network_name == 'drillmaster'
+        assert self.collection.options.timeout == 50
+        assert not self.collection.options.remove
