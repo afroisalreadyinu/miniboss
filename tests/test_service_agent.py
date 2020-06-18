@@ -2,7 +2,7 @@ import unittest
 from unittest.mock import patch
 from types import SimpleNamespace as Bunch
 
-from drillmaster import service_agent
+from drillmaster import service_agent, context
 from drillmaster.service_agent import ServiceAgent, Options
 
 from common import MockDocker
@@ -64,6 +64,18 @@ class ServiceAgentTests(unittest.TestCase):
         agent.run_image()
         assert len(self.docker._containers_created) == 1
         assert len(self.docker._containers_started) == 1
+
+
+    def test_run_image_extrapolate_env(self):
+        service = FakeService()
+        service.env = {'ENV_ONE': 'http://{host}:{port:d}'}
+        context.Context['host'] = 'zombo.com'
+        context.Context['port'] = 80
+        agent = ServiceAgent(service, None, DEFAULT_OPTIONS)
+        agent.run_image()
+        assert len(self.docker._containers_started) == 1
+        container = list(self.docker._containers_created.values())[0]
+        assert container['environment']['ENV_ONE'] == 'http://zombo.com:80'
 
 
     def test_agent_status_change_happy_path(self):

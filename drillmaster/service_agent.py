@@ -5,6 +5,7 @@ import logging
 from typing import NamedTuple
 
 from drillmaster.docker_client import get_client
+from drillmaster.context import Context
 
 logger = logging.getLogger(__name__)
 
@@ -77,7 +78,7 @@ class ServiceAgent(threading.Thread):
             detach=True,
             name=container_name,
             ports=list(self.service.ports.keys()),
-            environment=self.service.env,
+            environment=Context.extrapolate_values(self.service.env),
             host_config=host_config,
             networking_config=networking_config)
         client.api.start(container.get('Id'))
