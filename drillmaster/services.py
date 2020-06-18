@@ -17,8 +17,7 @@ from drillmaster.service_agent import (ServiceAgent,
 
 logging.basicConfig(
     level=logging.INFO,
-    style='{',
-    format= '[%(asctime)s] %(pathname)s:%(lineno)d %s(levelname)s - %(message)s'
+    format='[%(asctime)s] [%(name)s] %(levelname)s - %(message)s'
 )
 
 logger = logging.getLogger(__name__)
@@ -170,8 +169,9 @@ class ServiceCollection:
                     existing.remove()
         if options.remove:
             networks = docker.networks.list(names=[options.network_name])
-            assert networks, "No network named {}".format(options.network_name)
-            networks[0].remove()
+            if networks:
+                assert networks, "No network named {}".format(options.network_name)
+                networks[0].remove()
 
 
 
