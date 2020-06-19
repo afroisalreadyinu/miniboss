@@ -13,7 +13,7 @@ from drillmaster.services import (Service,
 from drillmaster.service_agent import Options, StopOptions
 from drillmaster import services, service_agent
 
-from common import MockDocker
+from common import MockDocker, FakeContainer
 
 class RunningContextTests(unittest.TestCase):
 
@@ -326,21 +326,9 @@ class ServiceCollectionTests(unittest.TestCase):
         assert container1.timeout == 50
         assert not container2.stopped
 
-    def test_stop_and_remove(self):
-        class FakeContainer(Bunch):
-            def stop(self, timeout):
-                self.stopped = True
-                self.timeout = timeout
-            def remove(self):
-                self.removed = True
-        container1 = FakeContainer(name='service1-drillmaster-1234',
-                                   stopped=False,
-                                   removed=False,
-                                   status='running')
-        container2 = FakeContainer(name='service2-drillmaster-5678',
-                                   stopped=False,
-                                   removed=False,
-                                   status='exited')
+    def test_stop_without_remove(self):
+        container1 = FakeContainer(name='service1-drillmaster-1234', status='running')
+        container2 = FakeContainer(name='service2-drillmaster-5678', status='exited')
         self.docker._existing_containers = [container1, container2]
         collection = ServiceCollection()
         class NewServiceBase(Service):
@@ -354,7 +342,49 @@ class ServiceCollectionTests(unittest.TestCase):
         class ServiceTwo(NewServiceBase):
             name = "service2"
             image = "howareyou/image"
+
         collection._base_class = NewServiceBase
+
+        class FakeNetwork(Bunch):
+            def remove(self):
+                self.removed = True
+
+        self.docker._networks = [FakeNetwork(name='drillmaster-network', id=12345, removed=False)]
+        collection.load_definitions()
+        collection.stop_all(StopOptions('drillmaster-network', False, 50))
+        assert container1.stopped
+        assert container1.timeout == 50
+        assert container1.removed_at is None
+        assert not container2.stopped
+        assert not self.docker._networks[0].removed
+
+
+    def test_stop_with_remove_and_order(self):
+        container1 = FakeContainer(name='service1-drillmaster-1234', status='running')
+        container2 = FakeContainer(name='service2-drillmaster-5678', status='running')
+        container3 = FakeContainer(name='service3-drillmaster-5678', status='running')
+        self.docker._existing_containers = [container1, container2, container3]
+        collection = ServiceCollection()
+        class NewServiceBase(Service):
+            name = "not used"
+            image = "not used"
+
+        class ServiceOne(NewServiceBase):
+            name = "service1"
+            image = "howareyou/image"
+
+        class ServiceTwo(NewServiceBase):
+            name = "service2"
+            image = "howareyou/image"
+            dependencies = ['service1']
+
+        class ServiceThree(NewServiceBase):
+            name = "service3"
+            image = "howareyou/image"
+            dependencies = ['service2']
+
+        collection._base_class = NewServiceBase
+
         class FakeNetwork(Bunch):
             def remove(self):
                 self.removed = True
@@ -363,9 +393,12 @@ class ServiceCollectionTests(unittest.TestCase):
         collection.load_definitions()
         collection.stop_all(StopOptions('drillmaster-network', True, 50))
         assert container1.stopped
-        assert container1.timeout == 50
-        assert not container2.stopped
-
+        assert container1.removed_at is not None
+        assert container2.stopped
+        assert container2.removed_at is not None
+        assert container3.stopped
+        assert container3.removed_at is not None
+        assert container1.removed_at > container2.removed_at > container3.removed_at
 
 class ServiceCommandTests(unittest.TestCase):
 

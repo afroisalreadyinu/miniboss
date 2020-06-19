@@ -3,6 +3,7 @@ import logging
 from collections import Counter, Mapping
 import threading
 import copy
+from itertools import chain
 
 import click
 import requests
@@ -87,6 +88,7 @@ class RunningContext:
         return [self.waiting_agents.pop(name) for name in startable]
 
 
+
 class ServiceCollection:
 
     def __init__(self):
@@ -158,8 +160,14 @@ class ServiceCollection:
 
     def stop_all(self, options: StopOptions):
         docker = get_client()
-        service_names = self.all_by_name.keys()
-        for name in service_names:
+        to_be_stopped = list(self.all_by_name.keys())
+        while to_be_stopped:
+            all_dependencies = []
+            for service in to_be_stopped:
+                all_dependencies.extend(d.name for d in self.all_by_name[service].dependencies)
+                dependencies = set(all_dependencies)
+            # pick a service that's not a dependency
+            name = [x for x in to_be_stopped if x not in dependencies][0]
             prefix = "{}-drillmaster".format(name)
             existings = docker.containers.list(all=True, filters={'network': options.network_name,
                                                                   'name': prefix})
@@ -170,6 +178,7 @@ class ServiceCollection:
                 if options.remove:
                     logging.info("Removed container %s", existing.name)
                     existing.remove()
+            to_be_stopped.remove(name)
         if options.remove:
             networks = docker.networks.list(names=[options.network_name])
             if networks:

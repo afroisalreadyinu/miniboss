@@ -1,4 +1,24 @@
 import uuid
+import time
+from types import SimpleNamespace as Bunch
+
+
+class FakeContainer(Bunch):
+
+    def __init__(self, **kwargs):
+        self.stopped = False
+        self.removed_at = None
+        self.timeout = None
+        super().__init__(**kwargs)
+
+    def stop(self, timeout):
+        self.stopped = True
+        self.removed_at = None
+        self.timeout = timeout
+
+    def remove(self):
+        time.sleep(0.1)
+        self.removed_at = time.time()
 
 class MockDocker:
     def __init__(self):
@@ -20,9 +40,10 @@ class MockDocker:
 
         class Containers:
             def list(self, *args, **kwargs):
-                if 'name' in kwargs:
+                filters = kwargs.get('filters', {})
+                if 'name' in filters:
                     return [x for x in parent._existing_containers
-                            if kwargs['name'] in x.name]
+                            if filters['name'] in x.name]
                 return parent._existing_containers
         self.containers= Containers()
 
