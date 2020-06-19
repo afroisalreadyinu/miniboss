@@ -2,6 +2,41 @@ import uuid
 import time
 from types import SimpleNamespace as Bunch
 
+class FakeServiceCollection:
+    def __init__(self):
+        self.started_service = None
+        self.failed_service = None
+
+    def start_next(self, started_service):
+        self.started_service = started_service
+
+    def service_failed(self, failed_service):
+        self.failed_service = failed_service
+
+class FakeService:
+    name = 'service1'
+    image = 'not/used'
+    dependencies = []
+    ports = {}
+    env = {}
+    always_start_new = False
+
+    def __init__(self, fail_ping=False, exception_at_init=None):
+        self.fail_ping = fail_ping
+        self.exception_at_init = exception_at_init
+        self.ping_count = 0
+        self.init_called = False
+
+    def ping(self):
+        self.ping_count += 1
+        return not self.fail_ping
+
+    def post_start_init(self):
+        self.init_called = True
+        if self.exception_at_init:
+            raise self.exception_at_init()
+        return True
+
 
 class FakeContainer(Bunch):
 
@@ -42,8 +77,7 @@ class MockDocker:
             def list(self, *args, **kwargs):
                 filters = kwargs.get('filters', {})
                 if 'name' in filters:
-                    return [x for x in parent._existing_containers
-                            if filters['name'] in x.name]
+                    return [x for x in parent._existing_containers if filters['name'] in x.name]
                 return parent._existing_containers
         self.containers= Containers()
 

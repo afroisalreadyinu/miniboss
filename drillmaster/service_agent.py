@@ -55,17 +55,18 @@ class ServiceAgent(threading.Thread):
         # network, skip creating
         container_name_prefix = "{:s}-drillmaster".format(self.service.name)
         existings = client.containers.list(all=True,
-                                          filters={'status': 'running',
-                                                   'name': container_name_prefix,
-                                                   'network': 'link-testing'})
+                                           filters={'name': container_name_prefix,
+                                                    'network': self.options.network_name})
         if existings:
+            # TODO fix this; it should be able to deal with multiple existing
+            # containers
             existing = existings[0]
             if existing.status == 'running':
                 logger.info("Running container for %s, not starting a new one", self.service.name)
                 return
             elif existing.status == 'exited':
                 if not (self.options.run_new_containers or self.service.always_start_new):
-                    logger.info("There is an existing container for %s, not starting a new one", self.service.name)
+                    logger.info("There is an existing container for %s, not creating a new one", self.service.name)
                     existing.start()
                     return
         container_name = "{:s}-{:s}".format(container_name_prefix, ''.join(random.sample(DIGITS, 4)))
