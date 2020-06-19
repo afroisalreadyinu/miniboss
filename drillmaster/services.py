@@ -98,19 +98,13 @@ class ServiceCollection:
         self.service_pop_lock = threading.Lock()
         self.failed = False
 
-    def load_definitions(self, exclude=None):
-        exclude = exclude or []
+    def load_definitions(self):
         services = self._base_class.__subclasses__()
         if len(services) == 0:
             raise ServiceLoadError("No services defined")
         name_counter = Counter()
         for service in services:
-            if service.name not in exclude:
-                self.all_by_name[service.name] = service()
-                excluded_deps = [dep for dep in service.dependencies if dep in exclude]
-                if excluded_deps:
-                    raise ServiceLoadError("{:s} is to be excluded, but {:s} depends on it".format(
-                        excluded_deps[0], service.name))
+            self.all_by_name[service.name] = service()
             name_counter[service.name] += 1
         multiples = [name for name,count in name_counter.items() if count > 1]
         if multiples:
@@ -119,6 +113,26 @@ class ServiceCollection:
             dependencies = service.dependencies[:]
             service.dependencies = [self.all_by_name[dependency] for dependency in dependencies]
         self.check_circular_dependencies()
+
+    def exclude_for_start(self, exclude):
+        for service in self.all_by_name.values():
+            excluded_deps = [dep.name for dep in service.dependencies if dep.name in exclude]
+            if excluded_deps:
+                raise ServiceLoadError("{:s} is to be excluded, but {:s} depends on it".format(
+                    excluded_deps[0], service.name))
+        for name in exclude:
+            self.all_by_name.pop(name)
+
+
+    def exclude_for_stop(self, exclude):
+        for service_name in exclude:
+            service = self.all_by_name[service_name]
+            deps_to_be_stopped = [dep.name for dep in service.dependencies if dep.name not in exclude]
+            if deps_to_be_stopped:
+                raise ServiceLoadError("{:s} is to be stopped, but {:s} depends on it".format(
+                    deps_to_be_stopped[0], service.name))
+            self.all_by_name.pop(service_name)
+
 
     def check_circular_dependencies(self):
         with_dependencies = [x for x in self.all_by_name.values() if x.dependencies != []]
@@ -186,12 +200,11 @@ class ServiceCollection:
                 logging.info("Removed network %s", options.network_name)
 
 
-
-
 def start_services(run_new_containers, exclude, network_name, timeout):
     docker = get_client()
     collection = ServiceCollection()
-    collection.load_definitions(exclude=exclude)
+    collection.load_definitions()
+    collection.exclude_for_start(exclude)
     existing_network = docker.networks.list(names=[network_name])
     if not existing_network:
         network = docker.networks.create(network_name, driver="bridge")
@@ -205,5 +218,6 @@ def stop_services(exclude, network_name, remove, timeout):
     options = StopOptions(network_name, remove, timeout)
     docker = get_client()
     collection = ServiceCollection()
-    collection.load_definitions(exclude=exclude)
+    collection.load_definitions()
+    collection.exclude_for_stop(exclude)
     collection.stop_all(options)

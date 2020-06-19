@@ -162,7 +162,7 @@ class ServiceCollectionTests(unittest.TestCase):
         assert len(collection) == 3
 
 
-    def test_load_services_exclude(self):
+    def test_exclude_for_start(self):
         collection = ServiceCollection()
         class NewServiceBase(Service):
             name = "not used"
@@ -182,11 +182,12 @@ class ServiceCollectionTests(unittest.TestCase):
             name = "howareyou"
             image = "hello"
 
-        collection.load_definitions(exclude=['goodbye'])
+        collection.load_definitions()
+        collection.exclude_for_start(['goodbye'])
         assert len(collection) == 2
 
 
-    def test_error_on_dependency_excluded(self):
+    def test_error_on_start_dependency_excluded(self):
         collection = ServiceCollection()
         class NewServiceBase(Service):
             name = "not used"
@@ -206,8 +207,33 @@ class ServiceCollectionTests(unittest.TestCase):
             name = "howareyou"
             image = "hello"
 
+        collection.load_definitions()
         with pytest.raises(ServiceLoadError):
-            collection.load_definitions(exclude=['hello'])
+            collection.exclude_for_start(['hello'])
+
+    def test_error_on_stop_dependency_excluded(self):
+        collection = ServiceCollection()
+        class NewServiceBase(Service):
+            name = "not used"
+            image = "not used"
+        collection._base_class = NewServiceBase
+        class ServiceOne(NewServiceBase):
+            name = "hello"
+            image = "hello"
+            dependencies = ["howareyou"]
+
+        class ServiceTwo(NewServiceBase):
+            name = "goodbye"
+            image = "hello"
+            dependencies = ["hello"]
+
+        class ServiceThree(NewServiceBase):
+            name = "howareyou"
+            image = "hello"
+
+        collection.load_definitions()
+        with pytest.raises(ServiceLoadError):
+            collection.exclude_for_stop(['goodbye'])
 
 
     def test_start_all(self):
@@ -408,7 +434,9 @@ class ServiceCommandTests(unittest.TestCase):
             return self.docker
         services.get_client = get_fake_client
         class MockServiceCollection:
-            def load_definitions(self, exclude=None):
+            def load_definitions(self):
+                pass
+            def exclude_for_start(self, exclude):
                 self.excluded = exclude
             def start_all(self, options):
                 self.options = options
