@@ -27,6 +27,10 @@ class AgentStatus:
     STARTED = 'started'
     FAILED = 'failed'
 
+class RunCondition:
+    CREATED = 'created'
+    STARTED = 'started'
+    ALREADY_RUNNING = 'already-running'
 
 class ServiceAgent(threading.Thread):
 
@@ -49,7 +53,7 @@ class ServiceAgent(threading.Thread):
             self.open_dependencies.remove(service_name)
 
 
-    def run_image(self):
+    def run_image(self): # returns RunCondition
         client = get_client()
         # If there are any running with the name prefix, connected to the same
         # network, skip creating
@@ -63,12 +67,12 @@ class ServiceAgent(threading.Thread):
             existing = existings[0]
             if existing.status == 'running':
                 logger.info("Running container for %s, not starting a new one", self.service.name)
-                return
+                return RunCondition.ALREADY_RUNNING
             elif existing.status == 'exited':
                 if not (self.options.run_new_containers or self.service.always_start_new):
                     logger.info("There is an existing container for %s, not creating a new one", self.service.name)
                     existing.start()
-                    return
+                    return RunCondition.STARTED
         container_name = "{:s}-{:s}".format(container_name_prefix, ''.join(random.sample(DIGITS, 4)))
         networking_config = client.api.create_networking_config({
             self.options.network_name: client.api.create_endpoint_config(aliases=[self.service.name])
@@ -84,7 +88,7 @@ class ServiceAgent(threading.Thread):
             networking_config=networking_config)
         client.api.start(container.get('Id'))
         logger.info("Started container for service %s", self.service.name)
-        return container
+        return RunCondition.ALREADY_RUNNING
 
 
     def ping(self):
@@ -100,10 +104,11 @@ class ServiceAgent(threading.Thread):
     def run(self):
         self.status = AgentStatus.IN_PROGRESS
         try:
-            self.run_image()
-            if not self.ping():
-                self.collection.service_failed(self.service.name)
-                return
+            run_condition = self.run_image()
+            if run_condition != RunCondition.ALREADY_RUNNING:
+                if not self.ping():
+                    self.collection.service_failed(self.service.name)
+                    return
             self.service.post_start_init()
             self.collection.start_next(self.service.name)
         except:

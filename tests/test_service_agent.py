@@ -134,6 +134,16 @@ class ServiceAgentTests(unittest.TestCase):
         assert fake_service.init_called
 
 
+    def test_no_ping_if_running(self):
+        service = FakeService()
+        fake_collection = FakeServiceCollection()
+        agent = ServiceAgent(service, fake_collection, Options(True, 'the-network', 1))
+        self.docker._existing_containers = [Bunch(status='running',
+                                                  name="{}-drillmaster-123".format(service.name))]
+        agent.run()
+        assert service.ping_count == 0
+
+
     @patch('drillmaster.service_agent.time')
     def test_ping_timeout(self, mock_time):
         mock_time.monotonic.side_effect = [0, 0.2, 0.6, 0.8, 1]

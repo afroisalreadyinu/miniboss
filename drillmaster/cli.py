@@ -13,6 +13,7 @@ def cli():
 @click.option("--network-name", default="drillmaster-network", help="Network to use")
 @click.option("--timeout", type=int, default=300, help="Timeout for starting a service (seconds)")
 def start(run_new_containers, exclude, network_name, timeout):
+    exclude = exclude.split(",") if exclude else []
     services.start_services(run_new_containers, exclude, network_name, timeout)
 
 
@@ -22,5 +23,5 @@ def start(run_new_containers, exclude, network_name, timeout):
 @click.option("--remove", is_flag=True, default=False, help="Remove container images and network")
 @click.option("--timeout", type=int, default=50, help="Timeout for stopping a service (seconds)")
 def stop(exclude, network_name, remove, timeout):
-    exclude = exclude or []
+    exclude = exclude.split(",") if exclude else []
     services.stop_services(exclude, network_name, remove, timeout)
