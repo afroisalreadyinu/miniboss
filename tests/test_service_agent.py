@@ -134,7 +134,7 @@ class ServiceAgentTests(unittest.TestCase):
         assert fake_service.init_called
 
 
-    def test_no_ping_if_running(self):
+    def test_no_ping_or_init_if_running(self):
         service = FakeService()
         fake_collection = FakeServiceCollection()
         agent = ServiceAgent(service, fake_collection, Options(True, 'the-network', 1))
@@ -142,6 +142,21 @@ class ServiceAgentTests(unittest.TestCase):
                                                   name="{}-drillmaster-123".format(service.name))]
         agent.run()
         assert service.ping_count == 0
+        assert not service.init_called
+
+
+    def test_yes_ping_no_init_if_started(self):
+        service = FakeService()
+        fake_collection = FakeServiceCollection()
+        agent = ServiceAgent(service, fake_collection, Options(False, 'the-network', 1))
+        def start():
+            pass
+        self.docker._existing_containers = [Bunch(status='exited',
+                                                  start=start,
+                                                  name="{}-drillmaster-123".format(service.name))]
+        agent.run()
+        assert service.ping_count == 1
+        assert not service.init_called
 
 
     @patch('drillmaster.service_agent.time')

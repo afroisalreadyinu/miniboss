@@ -88,7 +88,7 @@ class ServiceAgent(threading.Thread):
             networking_config=networking_config)
         client.api.start(container.get('Id'))
         logger.info("Started container for service %s", self.service.name)
-        return RunCondition.ALREADY_RUNNING
+        return RunCondition.CREATED
 
 
     def ping(self):
@@ -109,7 +109,8 @@ class ServiceAgent(threading.Thread):
                 if not self.ping():
                     self.collection.service_failed(self.service.name)
                     return
-            self.service.post_start_init()
+            if run_condition == RunCondition.CREATED:
+                self.service.post_start_init()
             self.collection.start_next(self.service.name)
         except:
             logger.exception("Error starting service")

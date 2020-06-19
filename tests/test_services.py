@@ -438,6 +438,8 @@ class ServiceCommandTests(unittest.TestCase):
                 pass
             def exclude_for_start(self, exclude):
                 self.excluded = exclude
+            def exclude_for_stop(self, exclude):
+                self.excluded = exclude
             def start_all(self, options):
                 self.options = options
                 return ["one", "two"]
@@ -465,7 +467,8 @@ class ServiceCommandTests(unittest.TestCase):
         assert self.collection.options.run_new_containers
 
     def test_stop_services(self):
-        services.stop_services([], "drillmaster", False, 50)
+        services.stop_services(['test'], "drillmaster", False, 50)
         assert self.collection.options.network_name == 'drillmaster'
         assert self.collection.options.timeout == 50
         assert not self.collection.options.remove
+        assert self.collection.excluded == ['test']
