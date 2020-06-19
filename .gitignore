@@ -1,1 +1,3 @@
 *.egg-info
+drillmaster/__pycache__
+tests/__pycache__
