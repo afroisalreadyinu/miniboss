@@ -210,7 +210,7 @@ def start_services(run_new_containers, exclude, network_name, timeout):
         network = docker.networks.create(network_name, driver="bridge")
         logger.info("Created network %s", network_name)
     service_names = collection.start_all(Options(run_new_containers, network_name, timeout))
-    logger.info("Started services: %s", ",".join(service_names))
+    logger.info("Started services: %s", ", ".join(service_names))
 
 
 def stop_services(exclude, network_name, remove, timeout):
