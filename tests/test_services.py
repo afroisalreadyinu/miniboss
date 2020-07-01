@@ -13,7 +13,7 @@ from drillmaster.services import (Service,
 from drillmaster.service_agent import Options, StopOptions
 from drillmaster import services, service_agent
 
-from common import MockDocker, FakeContainer
+from common import FakeDocker, FakeContainer
 
 class RunningContextTests(unittest.TestCase):
 
@@ -81,11 +81,9 @@ class ServiceDefinitionTests(unittest.TestCase):
 class ServiceCollectionTests(unittest.TestCase):
 
     def setUp(self):
-        self.docker = MockDocker()
-        def get_fake_client():
-            return self.docker
-        services.get_client = get_fake_client
-        service_agent.get_client = get_fake_client
+        self.docker = FakeDocker.Instance = FakeDocker()
+        services.DockerClient = self.docker
+        service_agent.DockerClient = self.docker
 
     def test_raise_exception_on_no_services(self):
         collection = ServiceCollection()
@@ -262,13 +260,11 @@ class ServiceCollectionTests(unittest.TestCase):
         collection.load_definitions()
         retval = collection.start_all(Options(False, 'the-network', 50))
         assert set(retval) == {"hello", "goodbye", "howareyou"}
-        assert len(self.docker._containers_created) == 3
-        assert len(self.docker._containers_started) == 3
+        assert len(self.docker._services_started) == 3
         # The one without dependencies should have been started first
-        first_cont_id = self.docker._containers_started[0]
-        first_cont = self.docker._containers_created[first_cont_id]
-        assert first_cont['image'] == 'howareyou/image'
-        assert first_cont['name'].startswith('howareyou')
+        name_prefix, service, network_name = self.docker._services_started[0]
+        assert service.image == 'howareyou/image'
+        assert name_prefix == "howareyou-drillmaster"
 
 
     def test_stop_on_fail(self):

@@ -5,17 +5,15 @@ from types import SimpleNamespace as Bunch
 from drillmaster import service_agent, context
 from drillmaster.service_agent import ServiceAgent, Options
 
-from common import MockDocker, FakeService, FakeServiceCollection
+from common import FakeDocker, FakeService, FakeServiceCollection
 
 DEFAULT_OPTIONS = Options(False, 'the-network', 1)
 
 class ServiceAgentTests(unittest.TestCase):
 
     def setUp(self):
-        self.docker = MockDocker()
-        def get_fake_client():
-            return self.docker
-        service_agent.get_client = get_fake_client
+        self.docker = FakeDocker.Instance = FakeDocker()
+        service_agent.DockerClient = self.docker
 
 
     def test_can_start(self):
@@ -27,8 +25,12 @@ class ServiceAgentTests(unittest.TestCase):
     def test_run_image(self):
         agent = ServiceAgent(FakeService(), None, DEFAULT_OPTIONS)
         agent.run_image()
-        assert len(self.docker._containers_created) == 1
-        assert len(self.docker._containers_started) == 1
+        assert len(self.docker._services_started) == 1
+        prefix, service, network_name = self.docker._services_started[0]
+        assert prefix == "service1-drillmaster"
+        assert service.name == 'service1'
+        assert service.image == 'not/used'
+        assert network_name == 'the-network'
 
 
     def test_run_image_extrapolate_env(self):
@@ -38,9 +40,9 @@ class ServiceAgentTests(unittest.TestCase):
         context.Context['port'] = 80
         agent = ServiceAgent(service, None, DEFAULT_OPTIONS)
         agent.run_image()
-        assert len(self.docker._containers_started) == 1
-        container = list(self.docker._containers_created.values())[0]
-        assert container['environment']['ENV_ONE'] == 'http://zombo.com:80'
+        assert len(self.docker._services_started) == 1
+        _, service, _ = self.docker._services_started[0]
+        assert service.env['ENV_ONE'] == 'http://zombo.com:80'
 
 
     def test_agent_status_change_happy_path(self):
@@ -69,10 +71,12 @@ class ServiceAgentTests(unittest.TestCase):
         service = FakeService()
         agent = ServiceAgent(service, None, DEFAULT_OPTIONS)
         self.docker._existing_containers = [Bunch(status='running',
-                                                  name="{}-drillmaster-123".format(service.name))]
+                                                  name="{}-drillmaster-123".format(service.name),
+                                                  network='the-network')]
         agent.run_image()
-        assert len(self.docker._containers_created) == 0
-        assert len(self.docker._containers_started) == 0
+        assert len(self.docker._services_started) == 0
+        assert len(self.docker._existing_queried) == 1
+        assert self.docker._existing_queried[0] == ("service1-drillmaster", "the-network")
 
 
     def test_start_old_container_if_exists(self):
@@ -84,10 +88,10 @@ class ServiceAgentTests(unittest.TestCase):
             restarted = True
         self.docker._existing_containers = [Bunch(status='exited',
                                                   start=start,
+                                                  network='the-network',
                                                   name="{}-drillmaster-123".format(service.name))]
         agent.run_image()
-        assert len(self.docker._containers_created) == 0
-        assert len(self.docker._containers_started) == 0
+        assert len(self.docker._services_started) == 0
         assert restarted
 
 
@@ -100,10 +104,10 @@ class ServiceAgentTests(unittest.TestCase):
             restarted = True
         self.docker._existing_containers = [Bunch(status='exited',
                                                   start=start,
+                                                  network='the-network',
                                                   name="{}-drillmaster-123".format(service.name))]
         agent.run_image()
-        assert len(self.docker._containers_created) == 1
-        assert len(self.docker._containers_started) == 1
+        assert len(self.docker._services_started) == 1
         assert not restarted
 
 
@@ -117,10 +121,10 @@ class ServiceAgentTests(unittest.TestCase):
             restarted = True
         self.docker._existing_containers = [Bunch(status='exited',
                                                   start=start,
+                                                  network='the-network',
                                                   name="{}-drillmaster-123".format(service.name))]
         agent.run_image()
-        assert len(self.docker._containers_created) == 1
-        assert len(self.docker._containers_started) == 1
+        assert len(self.docker._services_started) == 1
         assert not restarted
 
 
@@ -139,6 +143,7 @@ class ServiceAgentTests(unittest.TestCase):
         fake_collection = FakeServiceCollection()
         agent = ServiceAgent(service, fake_collection, Options(True, 'the-network', 1))
         self.docker._existing_containers = [Bunch(status='running',
+                                                  network='the-network',
                                                   name="{}-drillmaster-123".format(service.name))]
         agent.run()
         assert service.ping_count == 0
@@ -153,6 +158,7 @@ class ServiceAgentTests(unittest.TestCase):
             pass
         self.docker._existing_containers = [Bunch(status='exited',
                                                   start=start,
+                                                  network='the-network',
                                                   name="{}-drillmaster-123".format(service.name))]
         agent.run()
         assert service.ping_count == 1

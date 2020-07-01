@@ -10,7 +10,7 @@ import requests
 import furl
 import requests.exceptions
 
-from drillmaster.docker_client import get_client
+from drillmaster.docker_client import DockerClient
 from drillmaster.service_agent import (ServiceAgent,
                                        Options,
                                        StopOptions,
@@ -173,7 +173,7 @@ class ServiceCollection:
         return list(self.all_by_name.keys())
 
     def stop_all(self, options: StopOptions):
-        docker = get_client()
+        docker = DockerClient.get_client()
         to_be_stopped = list(self.all_by_name.keys())
         while to_be_stopped:
             all_dependencies = []
@@ -183,8 +183,9 @@ class ServiceCollection:
             # pick a service that's not a dependency
             name = [x for x in to_be_stopped if x not in dependencies][0]
             prefix = "{}-drillmaster".format(name)
-            existings = docker.containers.list(all=True, filters={'network': options.network_name,
-                                                                  'name': prefix})
+            existings = docker.existing_on_network(prefix, options.network_name)
+            # existings = docker.containers.list(all=True, filters={'network': options.network_name,
+            #                                                       'name': prefix})
             for existing in existings:
                 if existing.status == 'running':
                     existing.stop(timeout=options.timeout)
@@ -194,21 +195,15 @@ class ServiceCollection:
                     existing.remove()
             to_be_stopped.remove(name)
         if options.remove:
-            networks = docker.networks.list(names=[options.network_name])
-            if networks:
-                networks[0].remove()
-                logging.info("Removed network %s", options.network_name)
+            docker.remove_network(options.network_name)
 
 
 def start_services(run_new_containers, exclude, network_name, timeout):
-    docker = get_client()
+    docker = DockerClient.get_client()
     collection = ServiceCollection()
     collection.load_definitions()
     collection.exclude_for_start(exclude)
-    existing_network = docker.networks.list(names=[network_name])
-    if not existing_network:
-        network = docker.networks.create(network_name, driver="bridge")
-        logger.info("Created network %s", network_name)
+    docker.create_network(network_name)
     service_names = collection.start_all(Options(run_new_containers, network_name, timeout))
     logger.info("Started services: %s", ", ".join(service_names))
 
@@ -216,7 +211,6 @@ def start_services(run_new_containers, exclude, network_name, timeout):
 def stop_services(exclude, network_name, remove, timeout):
     logger.info("Stopping services (excluded: %s)", "none" if not exclude else ",".join(exclude))
     options = StopOptions(network_name, remove, timeout)
-    docker = get_client()
     collection = ServiceCollection()
     collection.load_definitions()
     collection.exclude_for_stop(exclude)

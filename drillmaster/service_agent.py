@@ -4,12 +4,10 @@ import time
 import logging
 from typing import NamedTuple
 
-from drillmaster.docker_client import get_client
+from drillmaster.docker_client import DockerClient
 from drillmaster.context import Context
 
 logger = logging.getLogger(__name__)
-
-DIGITS = "0123456789"
 
 class Options(NamedTuple):
     run_new_containers: bool
@@ -54,13 +52,11 @@ class ServiceAgent(threading.Thread):
 
 
     def run_image(self): # returns RunCondition
-        client = get_client()
+        client = DockerClient.get_client()
         # If there are any running with the name prefix, connected to the same
         # network, skip creating
         container_name_prefix = "{:s}-drillmaster".format(self.service.name)
-        existings = client.containers.list(all=True,
-                                           filters={'name': container_name_prefix,
-                                                    'network': self.options.network_name})
+        existings = client.existing_on_network(container_name_prefix, self.options.network_name)
         if existings:
             # TODO fix this; it should be able to deal with multiple existing
             # containers
@@ -73,21 +69,8 @@ class ServiceAgent(threading.Thread):
                     logger.info("There is an existing container for %s, not creating a new one", self.service.name)
                     existing.start()
                     return RunCondition.STARTED
-        container_name = "{:s}-{:s}".format(container_name_prefix, ''.join(random.sample(DIGITS, 4)))
-        networking_config = client.api.create_networking_config({
-            self.options.network_name: client.api.create_endpoint_config(aliases=[self.service.name])
-        })
-        host_config=client.api.create_host_config(port_bindings=self.service.ports)
-        container = client.api.create_container(
-            self.service.image,
-            detach=True,
-            name=container_name,
-            ports=list(self.service.ports.keys()),
-            environment=Context.extrapolate_values(self.service.env),
-            host_config=host_config,
-            networking_config=networking_config)
-        client.api.start(container.get('Id'))
-        logger.info("Started container for service %s", self.service.name)
+        self.service.env = Context.extrapolate_values(self.service.env)
+        client.run_service_on_network(container_name_prefix, self.service, self.options.network_name)
         return RunCondition.CREATED
 
 
