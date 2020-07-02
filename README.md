@@ -55,5 +55,30 @@ enviornment variables; as in the case of the first service, you can use normal
 variables in this and any other value. The other available fields will be
 explained later. The application service `Application` depends on the the
 database service, specified with the `dependencies` field. As in
-`docker-compose`, this means that it will started after `Database` reaches
+`docker-compose`, this means that it will get started after `Database` reaches
 running status.
+
+The `drillmaster.main` function is the main entry point for the tool; you can
+run this script without arguments to get the following output:
+
+```
+Usage: integration_test.py [OPTIONS] COMMAND [ARGS]...
+
+Options:
+  --help  Show this message and exit.
+
+Commands:
+  start
+  stop
+```
+
+
+
+### Lifecycle events
+
+A service has two methods that can be overriden: `ping` and `post_start_init`.
+Both of these by default do nothing; when implemented, they are executed one
+after the other, and the service is not registered as `running` before each
+succeed. The `ping` method is executed repeatedly, with 0.1 seconds gap, for
+`timeout` seconds, until it returns True. Once `ping` returns, `post_start_init`
+is called.
