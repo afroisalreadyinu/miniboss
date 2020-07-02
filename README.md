@@ -34,13 +34,26 @@ DB_PORT = 5433
 
 class Database(drillmaster.Service):
     image = "postgres:10.6"
-    name = "keycloakdb"
-    env = {"POSTGRES_PASSWORD": "keycloakdbpwd",
-           "POSTGRES_USER": "keycloak",
-           "POSTGRES_DB": "keycloak",
-           "PGPORT": KEYCLOAK_DB_PORT}
+    name = "appdb"
+    env = {"POSTGRES_PASSWORD": "dbpwd",
+           "POSTGRES_USER": "dbuser",
+           "POSTGRES_DB": "appdb",
+           "PGPORT": DB_PORT }
     ports = {DB_PORT: DB_PORT}
 
 class Application(drillmaster.Service):
+    dependencies = ["appdb"]
     pass
+
+if __name__ == "__main__":
+    drillmaster.main()
 ```
+
+A service is defined by subclassing `drillmaster.Service` and overriding in the
+minimal case the fields `image` and `name`. The `env` field specifies the
+enviornment variables; as in the case of the first service, you can use normal
+variables in this and any other value. The other available fields will be
+explained later. The application service `Application` depends on the the
+database service, specified with the `dependencies` field. As in
+`docker-compose`, this means that it will started after `Database` reaches
+running status.
