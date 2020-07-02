@@ -65,6 +65,7 @@ class FakeDocker:
 
     def __init__(self):
         self._networks_created = []
+        self._networks_removed = []
         self._services_started = []
         self._existing_queried = []
 
@@ -74,7 +75,7 @@ class FakeDocker:
         self._networks_created.append(network_name)
 
     def remove_network(self, network_name):
-        pass
+        self._networks_removed.append(network_name)
 
     def existing_on_network(self, name, network_name):
         self._existing_queried.append((name, network_name))
