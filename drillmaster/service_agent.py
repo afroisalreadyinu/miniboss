@@ -39,16 +39,16 @@ class ServiceAgent(threading.Thread):
         self.service = service
         self.options = options
         self.context = context
-        self.open_dependencies = [x.name for x in service.dependencies]
+        self.open_dependencies = service.dependencies[:]
         self.status = AgentStatus.NULL
 
     @property
     def can_start(self):
         return self.open_dependencies == []
 
-    def process_service_started(self, service_name):
-        if service_name in self.open_dependencies:
-            self.open_dependencies.remove(service_name)
+    def process_service_started(self, service):
+        if service in self.open_dependencies:
+            self.open_dependencies.remove(service)
 
 
     def run_image(self): # returns RunCondition
@@ -90,15 +90,15 @@ class ServiceAgent(threading.Thread):
             run_condition = self.run_image()
             if run_condition != RunCondition.ALREADY_RUNNING:
                 if not self.ping():
-                    self.context.service_failed(self.service.name)
+                    self.context.service_failed(self.service)
                     return
             if run_condition == RunCondition.CREATED:
                 self.service.post_start_init()
         except:
             logger.exception("Error starting service")
-            self.context.service_failed(self.service.name)
+            self.context.service_failed(self.service)
             self.status = AgentStatus.FAILED
         else:
             logger.info("Service %s started successfully", self.service.name)
             self.status = AgentStatus.STARTED
-            self.context.service_started(self.service.name)
+            self.context.service_started(self.service)

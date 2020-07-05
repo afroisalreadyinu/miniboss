@@ -135,7 +135,8 @@ class ServiceAgentTests(unittest.TestCase):
         fake_service = FakeService()
         agent = ServiceAgent(fake_service, DEFAULT_OPTIONS, fake_context)
         agent.run()
-        assert fake_context.started_services == ['service1']
+        assert len(fake_context.started_services) == 1
+        assert fake_context.started_services[0].name == 'service1'
         assert fake_service.ping_count == 1
         assert fake_service.init_called
 
@@ -177,6 +178,9 @@ class ServiceAgentTests(unittest.TestCase):
         assert fake_service.ping_count == 3
         assert mock_time.sleep.call_count == 3
 
+    def test_fail_on_start_timeout(self):
+        assert False, "Not implemented"
+
 
     def test_service_failed_on_failed_ping(self):
         fake_context = FakeRunningContext()
@@ -187,7 +191,8 @@ class ServiceAgentTests(unittest.TestCase):
         agent.run()
         assert fake_service.ping_count > 0
         assert fake_context.started_services == []
-        assert fake_context.failed_services == ['service1']
+        assert len(fake_context.failed_services) == 1
+        assert fake_context.failed_services[0].name == 'service1'
 
 
     def test_call_collection_failed_on_error(self):
@@ -197,4 +202,5 @@ class ServiceAgentTests(unittest.TestCase):
         agent.run()
         assert fake_service.ping_count > 0
         assert fake_context.started_services == []
-        assert fake_context.failed_services == ['service1']
+        assert len(fake_context.failed_services) == 1
+        assert fake_context.failed_services[0].name == 'service1'

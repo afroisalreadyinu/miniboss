@@ -66,6 +66,12 @@ class Service(metaclass=ServiceMeta):
     def post_start_init(self):
         pass
 
+    def __hash__(self):
+        return hash(self.name)
+
+    def __eq__(self, other):
+        return self.__class__ == other.__class__ and self.name == other.name
+
 
 class ServiceCollection:
 
@@ -73,7 +79,6 @@ class ServiceCollection:
         self.all_by_name = {}
         self._base_class = Service
         self.running_context = None
-        self.service_pop_lock = threading.Lock()
 
     def load_definitions(self):
         services = self._base_class.__subclasses__()
@@ -137,11 +142,11 @@ class ServiceCollection:
 
     def start_all(self, options: Options):
         self.running_context = RunningContext(self.all_by_name, self, options)
-        for agent in self.running_context.without_dependencies:
+        for agent in self.running_context.ready_to_start:
             agent.start()
-        while not (self.running_context.done or self.failed):
+        while not (self.running_context.done or self.self.running_context.failed):
             time.sleep(0.05)
-        if self.failed:
+        if self.running_context.failed:
             logger.error("Failed to start following services: %s", ",".join(self._failed))
         return list(x for x in self.all_by_name.keys() if x not in self._failed)
 

@@ -57,6 +57,15 @@ class ServiceDefinitionTests(unittest.TestCase):
                 env = {}
                 always_start_new = 123
 
+    def test_hashable(self):
+        class NewService(Service):
+            name = "service_one"
+            image = "notused"
+        service = NewService()
+        a_dict = {service: "one"}
+        assert service == NewService()
+        assert a_dict[NewService()] == "one"
+
 
 class ServiceCollectionTests(unittest.TestCase):
 
