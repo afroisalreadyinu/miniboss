@@ -77,6 +77,13 @@ class ServiceDefinitionTests(unittest.TestCase):
                 image = "yes"
                 env = "no"
 
+        with pytest.raises(ServiceDefinitionError):
+            class NewService(Service):
+                name = "yes"
+                image = "yes"
+                env = {}
+                always_start_new = 123
+
 
 class ServiceCollectionTests(unittest.TestCase):
 

@@ -49,6 +49,9 @@ class ServiceMeta(type):
         if "env" in attrdict and not isinstance(attrdict["env"], Mapping):
             raise ServiceDefinitionError(
                 "Field 'env' of service class {:s} must be a mapping".format(name))
+        if "always_start_new" in attrdict and not isinstance(attrdict["always_start_new"], bool):
+            raise ServiceDefinitionError(
+                "Field 'always_start_new' of service class {:s} must be a boolean".format(name))
         return super().__new__(cls, name, bases, attrdict)
 
 
