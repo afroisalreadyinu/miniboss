@@ -1,3 +1,5 @@
+[![afroisalreadyinu](https://circleci.com/gh/afroisalreadyinu/drillmaster.svg?style=svg)](https://app.circleci.com/pipelines/github/afroisalreadyinu/drillmaster)
+
 # drillmaster
 
 drillmaster is a Python application that can be used to locally start multiple
