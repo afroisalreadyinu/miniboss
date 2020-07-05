@@ -288,8 +288,8 @@ class ServiceCollectionTests(unittest.TestCase):
                 raise ValueError("I failed miserably")
         collection._base_class = NewServiceBase
         collection.load_definitions()
-        collection.start_all(Options(False, 'the-network', 50))
-        assert collection.failed
+        started = collection.start_all(Options(False, 'the-network', 50))
+        assert started == []
 
 
     def test_dont_return_failed_services(self):
@@ -312,37 +312,7 @@ class ServiceCollectionTests(unittest.TestCase):
         collection._base_class = NewServiceBase
         collection.load_definitions()
         started = collection.start_all(Options(False, 'the-network', 50))
-        assert collection.failed
         assert started == ["howareyou"]
-
-
-    @patch('drillmaster.services.threading')
-    def test_start_next_lock_call(self, mock_threading):
-        collection = ServiceCollection()
-        class NewServiceBase(Service):
-            name = "not used"
-            image = "not used"
-
-        class ServiceOne(NewServiceBase):
-            name = "service1"
-            image = "howareyou/image"
-
-        class ServiceTwo(NewServiceBase):
-            name = "service2"
-            image = "howareyou/image"
-            dependencies = ['service1']
-
-        class ServiceThree(NewServiceBase):
-            name = "service3"
-            image = "howareyou/image"
-            dependencies = ['service1']
-
-        collection._base_class = NewServiceBase
-        collection.load_definitions()
-        collection.start_all(Options(False, 'the-network', 50))
-        mock_lock = mock_threading.Lock.return_value
-        # This has to be 3 because start_next is called after each service
-        assert mock_lock.__enter__.call_count == 3
 
 
     def test_stop_all_remove_false(self):

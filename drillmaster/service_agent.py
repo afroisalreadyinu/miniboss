@@ -90,14 +90,15 @@ class ServiceAgent(threading.Thread):
             run_condition = self.run_image()
             if run_condition != RunCondition.ALREADY_RUNNING:
                 if not self.ping():
+                    self.status = AgentStatus.FAILED
                     self.context.service_failed(self.service)
                     return
             if run_condition == RunCondition.CREATED:
                 self.service.post_start_init()
         except:
             logger.exception("Error starting service")
-            self.context.service_failed(self.service)
             self.status = AgentStatus.FAILED
+            self.context.service_failed(self.service)
         else:
             logger.info("Service %s started successfully", self.service.name)
             self.status = AgentStatus.STARTED

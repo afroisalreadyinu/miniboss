@@ -1,4 +1,5 @@
 import unittest
+from unittest.mock import patch
 from types import SimpleNamespace as Bunch
 
 from drillmaster.running_context import RunningContext
@@ -69,3 +70,27 @@ class RunningContextTests(unittest.TestCase):
                                  Options(False, 'the-network', 50))
         context.service_failed(service1)
         assert len(context.failed_services) == 2
+
+
+    @patch('drillmaster.running_context.threading')
+    def test_service_started_lock_call(self, mock_threading):
+        service1 = FakeService(name='service1', dependencies=[])
+        service2 = FakeService(name='service2', dependencies=[service1])
+        context = RunningContext({'service1': service1, 'service2': service2},
+                                 Options(False, 'the-network', 50))
+        context.service_started(service1)
+        mock_lock = mock_threading.Lock.return_value
+        assert mock_lock.__enter__.call_count == 1
+
+
+    @patch('drillmaster.running_context.threading')
+    def test_service_failed_lock_call(self, mock_threading):
+        service1 = FakeService(name='service1', dependencies=[])
+        service2 = FakeService(name='service2', dependencies=[service1])
+        context = RunningContext({'service1': service1, 'service2': service2},
+                                 Options(False, 'the-network', 50))
+        context.service_failed(service1)
+        mock_lock = mock_threading.Lock.return_value
+        # This has to be 2 because service1 has a dependency, and it has to be
+        # locked as well
+        assert mock_lock.__enter__.call_count == 2

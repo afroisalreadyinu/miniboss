@@ -182,9 +182,9 @@ class ServiceAgentTests(unittest.TestCase):
         agent.run()
         assert fake_service.ping_count == 3
         assert mock_time.sleep.call_count == 3
-
-    def test_fail_on_start_timeout(self):
-        assert False, "Not implemented"
+        assert agent.status == AgentStatus.FAILED
+        assert len(fake_context.failed_services) == 1
+        assert fake_context.failed_services[0] is fake_service
 
 
     def test_service_failed_on_failed_ping(self):
