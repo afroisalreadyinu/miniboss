@@ -29,8 +29,12 @@ class RunningContext:
 
     def service_failed(self, failed_service):
         with self.service_pop_lock:
-            self.agent_set.pop(started_service)
+            self.agent_set.pop(failed_service)
             self.failed_services.append(failed_service)
+        services_left = list(self.agent_set.keys())
+        for service in services_left:
+            if failed_service in service.dependencies:
+                self.service_failed(service)
 
     def service_started(self, started_service):
         with self.service_pop_lock:
