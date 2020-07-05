@@ -5,7 +5,7 @@ from types import SimpleNamespace as Bunch
 from drillmaster import service_agent, context
 from drillmaster.service_agent import ServiceAgent, Options
 
-from common import FakeDocker, FakeService, FakeServiceCollection
+from common import FakeDocker, FakeService, FakeRunningContext
 
 DEFAULT_OPTIONS = Options(False, 'the-network', 1)
 
@@ -19,11 +19,11 @@ class ServiceAgentTests(unittest.TestCase):
     def test_can_start(self):
         service1 = Bunch(name='service1', dependencies=[])
         service2 = Bunch(name='service2', dependencies=[service1])
-        agent = ServiceAgent(service2, None, DEFAULT_OPTIONS)
+        agent = ServiceAgent(service2, DEFAULT_OPTIONS, None)
         assert agent.can_start is False
 
     def test_run_image(self):
-        agent = ServiceAgent(FakeService(), None, DEFAULT_OPTIONS)
+        agent = ServiceAgent(FakeService(), DEFAULT_OPTIONS, None)
         agent.run_image()
         assert len(self.docker._services_started) == 1
         prefix, service, network_name = self.docker._services_started[0]
@@ -38,7 +38,7 @@ class ServiceAgentTests(unittest.TestCase):
         service.env = {'ENV_ONE': 'http://{host}:{port:d}'}
         context.Context['host'] = 'zombo.com'
         context.Context['port'] = 80
-        agent = ServiceAgent(service, None, DEFAULT_OPTIONS)
+        agent = ServiceAgent(service, DEFAULT_OPTIONS, None)
         agent.run_image()
         assert len(self.docker._services_started) == 1
         _, service, _ = self.docker._services_started[0]
@@ -50,7 +50,9 @@ class ServiceAgentTests(unittest.TestCase):
             def ping(self):
                 assert self.status == 'in-progress'
                 return super().ping()
-        agent = ServiceAgentTestSubclass(FakeService(), FakeServiceCollection(), DEFAULT_OPTIONS)
+        agent = ServiceAgentTestSubclass(FakeService(),
+                                         DEFAULT_OPTIONS,
+                                         FakeRunningContext())
         assert agent.status == 'null'
         agent.run()
         assert agent.status == 'started'
@@ -61,7 +63,7 @@ class ServiceAgentTests(unittest.TestCase):
             def ping(self):
                 assert self.status == 'in-progress'
                 raise ValueError("I failed miserably")
-        agent = ServiceAgentTestSubclass(FakeService(), FakeServiceCollection(), DEFAULT_OPTIONS)
+        agent = ServiceAgentTestSubclass(FakeService(), DEFAULT_OPTIONS, FakeRunningContext())
         assert agent.status == 'null'
         agent.run()
         assert agent.status == 'failed'
@@ -69,7 +71,7 @@ class ServiceAgentTests(unittest.TestCase):
 
     def test_skip_if_running_on_same_network(self):
         service = FakeService()
-        agent = ServiceAgent(service, None, DEFAULT_OPTIONS)
+        agent = ServiceAgent(service, DEFAULT_OPTIONS, None)
         self.docker._existing_containers = [Bunch(status='running',
                                                   name="{}-drillmaster-123".format(service.name),
                                                   network='the-network')]
@@ -81,7 +83,7 @@ class ServiceAgentTests(unittest.TestCase):
 
     def test_start_old_container_if_exists(self):
         service = FakeService()
-        agent = ServiceAgent(service, None, DEFAULT_OPTIONS)
+        agent = ServiceAgent(service, DEFAULT_OPTIONS, None)
         restarted = False
         def start():
             nonlocal restarted
@@ -97,7 +99,7 @@ class ServiceAgentTests(unittest.TestCase):
 
     def test_start_new_if_run_new_containers(self):
         service = FakeService()
-        agent = ServiceAgent(service, None, Options(True, 'the-network', 1))
+        agent = ServiceAgent(service, Options(True, 'the-network', 1), None)
         restarted = False
         def start():
             nonlocal restarted
@@ -114,7 +116,7 @@ class ServiceAgentTests(unittest.TestCase):
     def test_start_new_if_always_start_new(self):
         service = FakeService()
         service.always_start_new = True
-        agent = ServiceAgent(service, None, Options(True, 'the-network', 1))
+        agent = ServiceAgent(service, Options(True, 'the-network', 1), None)
         restarted = False
         def start():
             nonlocal restarted
@@ -129,19 +131,19 @@ class ServiceAgentTests(unittest.TestCase):
 
 
     def test_ping_and_init_after_run(self):
-        fake_collection = FakeServiceCollection()
+        fake_context = FakeRunningContext()
         fake_service = FakeService()
-        agent = ServiceAgent(fake_service, fake_collection, DEFAULT_OPTIONS)
+        agent = ServiceAgent(fake_service, DEFAULT_OPTIONS, fake_context)
         agent.run()
-        assert fake_collection.started_service == 'service1'
+        assert fake_context.started_services == ['service1']
         assert fake_service.ping_count == 1
         assert fake_service.init_called
 
 
     def test_no_ping_or_init_if_running(self):
         service = FakeService()
-        fake_collection = FakeServiceCollection()
-        agent = ServiceAgent(service, fake_collection, Options(True, 'the-network', 1))
+        fake_context = FakeRunningContext()
+        agent = ServiceAgent(service, Options(True, 'the-network', 1), fake_context)
         self.docker._existing_containers = [Bunch(status='running',
                                                   network='the-network',
                                                   name="{}-drillmaster-123".format(service.name))]
@@ -152,8 +154,8 @@ class ServiceAgentTests(unittest.TestCase):
 
     def test_yes_ping_no_init_if_started(self):
         service = FakeService()
-        fake_collection = FakeServiceCollection()
-        agent = ServiceAgent(service, fake_collection, Options(False, 'the-network', 1))
+        fake_context = FakeRunningContext()
+        agent = ServiceAgent(service, Options(False, 'the-network', 1), fake_context)
         def start():
             pass
         self.docker._existing_containers = [Bunch(status='exited',
@@ -166,31 +168,33 @@ class ServiceAgentTests(unittest.TestCase):
 
 
     @patch('drillmaster.service_agent.time')
-    def test_ping_timeout(self, mock_time):
+    def test_repeat_ping_and_timeout(self, mock_time):
         mock_time.monotonic.side_effect = [0, 0.2, 0.6, 0.8, 1]
-        fake_collection = FakeServiceCollection()
+        fake_context = FakeRunningContext()
         fake_service = FakeService(fail_ping=True)
-        agent = ServiceAgent(fake_service, fake_collection, DEFAULT_OPTIONS)
+        agent = ServiceAgent(fake_service, DEFAULT_OPTIONS, fake_context)
         agent.run()
         assert fake_service.ping_count == 3
         assert mock_time.sleep.call_count == 3
 
 
     def test_service_failed_on_failed_ping(self):
-        fake_collection = FakeServiceCollection()
+        fake_context = FakeRunningContext()
         fake_service = FakeService(fail_ping=True)
-        agent = ServiceAgent(fake_service, fake_collection, DEFAULT_OPTIONS)
+        # Using options with low timeout so that test doesn't hang
+        options = Options(True, 'the-network', 0.01)
+        agent = ServiceAgent(fake_service, options, fake_context)
         agent.run()
         assert fake_service.ping_count > 0
-        assert fake_collection.started_service is None
-        assert fake_collection.failed_service == 'service1'
+        assert fake_context.started_services == []
+        assert fake_context.failed_services == ['service1']
 
 
     def test_call_collection_failed_on_error(self):
-        fake_collection = FakeServiceCollection()
+        fake_context = FakeRunningContext()
         fake_service = FakeService(exception_at_init=ValueError)
-        agent = ServiceAgent(fake_service, fake_collection, DEFAULT_OPTIONS)
+        agent = ServiceAgent(fake_service, DEFAULT_OPTIONS, fake_context)
         agent.run()
         assert fake_service.ping_count > 0
-        assert fake_collection.started_service is None
-        assert fake_collection.failed_service == 'service1'
+        assert fake_context.started_services == []
+        assert fake_context.failed_services == ['service1']

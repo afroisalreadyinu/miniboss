@@ -74,7 +74,6 @@ class ServiceCollection:
         self._base_class = Service
         self.running_context = None
         self.service_pop_lock = threading.Lock()
-        self._failed = []
 
     def load_definitions(self):
         services = self._base_class.__subclasses__()
@@ -135,19 +134,6 @@ class ServiceCollection:
 
     def __len__(self):
         return len(self.all_by_name)
-
-    @property
-    def failed(self):
-        return self._failed != []
-
-    def start_next(self, started_service):
-        with self.service_pop_lock:
-            new_startables = self.running_context.service_started(started_service)
-            for agent in new_startables:
-                agent.start()
-
-    def service_failed(self, failed_service):
-        self._failed.append(failed_service)
 
     def start_all(self, options: Options):
         self.running_context = RunningContext(self.all_by_name, self, options)

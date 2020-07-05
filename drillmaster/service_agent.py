@@ -32,13 +32,13 @@ class RunCondition:
 
 class ServiceAgent(threading.Thread):
 
-    def __init__(self, service, collection, options: Options):
+    def __init__(self, service, options: Options, context):
         # service: Service
-        # collection: ServiceCollection
+        # context: RunningContext
         super().__init__()
         self.service = service
-        self.collection = collection
         self.options = options
+        self.context = context
         self.open_dependencies = [x.name for x in service.dependencies]
         self.status = AgentStatus.NULL
 
@@ -90,15 +90,15 @@ class ServiceAgent(threading.Thread):
             run_condition = self.run_image()
             if run_condition != RunCondition.ALREADY_RUNNING:
                 if not self.ping():
-                    self.collection.service_failed(self.service.name)
+                    self.context.service_failed(self.service.name)
                     return
             if run_condition == RunCondition.CREATED:
                 self.service.post_start_init()
-            self.collection.start_next(self.service.name)
         except:
             logger.exception("Error starting service")
-            self.collection.service_failed(self.service.name)
+            self.context.service_failed(self.service.name)
             self.status = AgentStatus.FAILED
         else:
             logger.info("Service %s started successfully", self.service.name)
             self.status = AgentStatus.STARTED
+            self.context.service_started(self.service.name)

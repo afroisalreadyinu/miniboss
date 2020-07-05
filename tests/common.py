@@ -2,16 +2,16 @@ import uuid
 import time
 from types import SimpleNamespace as Bunch
 
-class FakeServiceCollection:
+class FakeRunningContext:
     def __init__(self):
-        self.started_service = None
-        self.failed_service = None
+        self.started_services = []
+        self.failed_services = []
 
-    def start_next(self, started_service):
-        self.started_service = started_service
+    def service_started(self, service_name):
+        self.started_services.append(service_name)
 
     def service_failed(self, failed_service):
-        self.failed_service = failed_service
+        self.failed_services.append(failed_service)
 
 class FakeService:
     name = 'service1'
