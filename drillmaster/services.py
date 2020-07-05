@@ -140,15 +140,19 @@ class ServiceCollection:
     def __len__(self):
         return len(self.all_by_name)
 
+
     def start_all(self, options: Options):
-        self.running_context = RunningContext(self.all_by_name, self, options)
-        for agent in self.running_context.ready_to_start:
-            agent.start()
-        while not (self.running_context.done or self.self.running_context.failed):
-            time.sleep(0.05)
-        if self.running_context.failed:
-            logger.error("Failed to start following services: %s", ",".join(self._failed))
-        return list(x for x in self.all_by_name.keys() if x not in self._failed)
+        self.running_context = RunningContext(self.all_by_name, options)
+        while not (self.running_context.done or self.running_context.failed_services):
+            for agent in self.running_context.ready_to_start:
+                agent.start()
+            time.sleep(0.01)
+        failed = []
+        if self.running_context.failed_services:
+            failed = [x.name for x in self.running_context.failed_services]
+            logger.error("Failed to start following services: %s", ",".join(failed))
+        return [x for x in self.all_by_name.keys() if x not in failed]
+
 
     def stop_all(self, options: StopOptions):
         docker = DockerClient.get_client()

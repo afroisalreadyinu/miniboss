@@ -3,7 +3,7 @@ from unittest.mock import patch
 from types import SimpleNamespace as Bunch
 
 from drillmaster import service_agent, context
-from drillmaster.service_agent import ServiceAgent, Options
+from drillmaster.service_agent import ServiceAgent, Options, AgentStatus
 
 from common import FakeDocker, FakeService, FakeRunningContext
 
@@ -21,6 +21,11 @@ class ServiceAgentTests(unittest.TestCase):
         service2 = Bunch(name='service2', dependencies=[service1])
         agent = ServiceAgent(service2, DEFAULT_OPTIONS, None)
         assert agent.can_start is False
+        agent.process_service_started(service1)
+        assert agent.can_start
+        agent.status = AgentStatus.IN_PROGRESS
+        assert agent.can_start is False
+
 
     def test_run_image(self):
         agent = ServiceAgent(FakeService(), DEFAULT_OPTIONS, None)

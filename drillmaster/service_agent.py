@@ -44,7 +44,7 @@ class ServiceAgent(threading.Thread):
 
     @property
     def can_start(self):
-        return self.open_dependencies == []
+        return self.open_dependencies == [] and self.status == AgentStatus.NULL
 
     def process_service_started(self, service):
         if service in self.open_dependencies:
