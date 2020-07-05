@@ -136,6 +136,26 @@ class ServiceCollectionTests(unittest.TestCase):
             collection.load_definitions()
 
 
+    def test_exception_on_invalid_dependency(self):
+        collection = ServiceCollection()
+        class NewServiceBase(Service):
+            name = "not used"
+            image = "not used"
+        collection._base_class = NewServiceBase
+
+        class ServiceOne(NewServiceBase):
+            name = "hello"
+            image = "hello"
+
+        class ServiceTwo(NewServiceBase):
+            name = "goodbye"
+            image = "hello"
+            dependencies = ["NOT_hello"]
+
+        with pytest.raises(ServiceLoadError):
+            collection.load_definitions()
+
+
     def test_load_services(self):
         collection = ServiceCollection()
         class NewServiceBase(Service):
@@ -281,6 +301,30 @@ class ServiceCollectionTests(unittest.TestCase):
         collection.load_definitions()
         collection.start_all(Options(False, 'the-network', 50))
         assert collection.failed
+
+
+    def test_dont_return_failed_services(self):
+        collection = ServiceCollection()
+        class NewServiceBase(Service):
+            name = "not used"
+            image = "not used"
+
+        class TheFirstService(NewServiceBase):
+            name = "howareyou"
+            image = "howareyou/image"
+
+        class TheService(NewServiceBase):
+            name = "imok"
+            image = "howareyou/image"
+            dependencies = ["howareyou"]
+            def ping(self):
+                raise ValueError("I failed miserably")
+
+        collection._base_class = NewServiceBase
+        collection.load_definitions()
+        started = collection.start_all(Options(False, 'the-network', 50))
+        assert collection.failed
+        assert started == ["howareyou"]
 
 
     @patch('drillmaster.services.threading')

@@ -96,7 +96,7 @@ class ServiceCollection:
         self._base_class = Service
         self.running_context = None
         self.service_pop_lock = threading.Lock()
-        self.failed = False
+        self._failed = []
 
     def load_definitions(self):
         services = self._base_class.__subclasses__()
@@ -111,6 +111,11 @@ class ServiceCollection:
             raise ServiceLoadError("Repeated service names: {:s}".format(",".join(multiples)))
         for service in self.all_by_name.values():
             dependencies = service.dependencies[:]
+            for dependency in dependencies:
+                if dependency not in self.all_by_name:
+                    raise ServiceLoadError(
+                        "Dependency {:s} of service {:s} not among services".format(
+                            service.name, dependency))
             service.dependencies = [self.all_by_name[dependency] for dependency in dependencies]
         self.check_circular_dependencies()
 
@@ -153,6 +158,10 @@ class ServiceCollection:
     def __len__(self):
         return len(self.all_by_name)
 
+    @property
+    def failed(self):
+        return self._failed != []
+
     def start_next(self, started_service):
         with self.service_pop_lock:
             new_startables = self.running_context.service_started(started_service)
@@ -160,7 +169,7 @@ class ServiceCollection:
                 agent.start()
 
     def service_failed(self, failed_service):
-        self.failed = True
+        self._failed.append(failed_service)
 
     def start_all(self, options: Options):
         self.running_context = RunningContext(self.all_by_name, self, options)
@@ -169,8 +178,8 @@ class ServiceCollection:
         while not (self.running_context.done or self.failed):
             time.sleep(0.05)
         if self.failed:
-            logger.error("Failed to start all services")
-        return list(self.all_by_name.keys())
+            logger.error("Failed to start following services: %s", ",".join(self._failed))
+        return list(x for x in self.all_by_name.keys() if x not in self._failed)
 
     def stop_all(self, options: StopOptions):
         docker = DockerClient.get_client()
