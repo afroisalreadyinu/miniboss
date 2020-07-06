@@ -99,6 +99,9 @@ class ServiceCollection:
                         "Dependency {:s} of service {:s} not among services".format(
                             service.name, dependency))
             service.dependencies = [self.all_by_name[dependency] for dependency in dependencies]
+        services = list(self.all_by_name.values())
+        for service in services:
+            service.dependants = [x for x in services if service in x.dependencies]
         self.check_circular_dependencies()
 
     def exclude_for_start(self, exclude):

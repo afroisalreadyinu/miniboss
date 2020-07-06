@@ -243,6 +243,38 @@ class ServiceCollectionTests(unittest.TestCase):
             collection.exclude_for_stop(['goodbye'])
 
 
+    def test_populate_dependants(self):
+        collection = ServiceCollection()
+        class NewServiceBase(Service):
+            name = "not used"
+            image = "not used"
+        collection._base_class = NewServiceBase
+
+        class ServiceOne(NewServiceBase):
+            name = "hello"
+            image = "not/used"
+            dependencies = ["howareyou"]
+
+        class ServiceTwo(NewServiceBase):
+            name = "goodbye"
+            image = "not/used"
+            dependencies = ["hello", "howareyou"]
+
+        class ServiceThree(NewServiceBase):
+            name = "howareyou"
+            image = "not/used"
+        collection.load_definitions()
+        assert len(collection.all_by_name) == 3
+        hello = collection.all_by_name['hello']
+        assert len(hello.dependants) == 1
+        assert hello.dependants[0].name == 'goodbye'
+        howareyou = collection.all_by_name['howareyou']
+        assert len(howareyou.dependants) == 2
+        names = [x.name for x in howareyou.dependants]
+        assert 'hello' in names
+        assert 'goodbye' in names
+
+
     def test_start_all(self):
         # This test does not fake threading, which is somehow dangerous, but the
         # aim is to make sure that the error handling etc. works also when there
