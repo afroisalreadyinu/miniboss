@@ -4,7 +4,8 @@ from types import SimpleNamespace as Bunch
 
 import pytest
 
-from drillmaster.services import (Service,
+from drillmaster.services import (connect_services,
+                                  Service,
                                   ServiceLoadError,
                                   ServiceCollection,
                                   ServiceDefinitionError)
@@ -67,6 +68,38 @@ class ServiceDefinitionTests(unittest.TestCase):
         assert a_dict[NewService()] == "one"
 
 
+class ConnectServicesTests(unittest.TestCase):
+
+    def test_raise_exception_on_same_name(self):
+        services = [Bunch(name="hello", image="hello"),
+                    Bunch(name="hello", image="goodbye")]
+        with pytest.raises(ServiceLoadError):
+            connect_services(services)
+
+    def test_exception_on_invalid_dependency(self):
+        services = [Bunch(name="hello", image="hello", dependencies=[]),
+                    Bunch(name="goodbye", image="goodbye", dependencies=["not_hello"])]
+        with pytest.raises(ServiceLoadError):
+            connect_services(services)
+
+    def test_all_good(self):
+        services = [Bunch(name="hello", image="hello", dependencies=[]),
+                    Bunch(name="goodbye", image="goodbye", dependencies=["hello"]),
+                    Bunch(name="howareyou", image="howareyou", dependencies=["hello", "goodbye"])]
+        by_name = connect_services(services)
+        assert len(by_name) == 3
+        hello = by_name['hello']
+        assert hello.dependencies == []
+        assert len(hello.dependants) == 2
+        assert by_name['goodbye'] in hello.dependants
+        assert by_name['howareyou'] in hello.dependants
+        howareyou = by_name['howareyou']
+        assert len(howareyou.dependencies) == 2
+        assert hello in howareyou.dependencies
+        assert by_name['goodbye'] in howareyou.dependencies
+        assert howareyou.dependants == []
+
+
 class ServiceCollectionTests(unittest.TestCase):
 
     def setUp(self):
@@ -80,22 +113,6 @@ class ServiceCollectionTests(unittest.TestCase):
             name = "not used"
             image = "not used"
         collection._base_class = NewServiceBase
-        with pytest.raises(ServiceLoadError):
-            collection.load_definitions()
-
-    def test_raise_exception_on_same_name(self):
-        collection = ServiceCollection()
-        class NewServiceBase(Service):
-            name = "not used"
-            image = "not used"
-
-        collection._base_class = NewServiceBase
-        class ServiceOne(NewServiceBase):
-            name = "hello"
-            image = "hello"
-        class ServiceTwo(NewServiceBase):
-            name = "hello"
-            image = "hello"
         with pytest.raises(ServiceLoadError):
             collection.load_definitions()
 
@@ -124,25 +141,6 @@ class ServiceCollectionTests(unittest.TestCase):
         with pytest.raises(ServiceLoadError):
             collection.load_definitions()
 
-
-    def test_exception_on_invalid_dependency(self):
-        collection = ServiceCollection()
-        class NewServiceBase(Service):
-            name = "not used"
-            image = "not used"
-        collection._base_class = NewServiceBase
-
-        class ServiceOne(NewServiceBase):
-            name = "hello"
-            image = "hello"
-
-        class ServiceTwo(NewServiceBase):
-            name = "goodbye"
-            image = "hello"
-            dependencies = ["NOT_hello"]
-
-        with pytest.raises(ServiceLoadError):
-            collection.load_definitions()
 
 
     def test_load_services(self):
@@ -348,15 +346,8 @@ class ServiceCollectionTests(unittest.TestCase):
 
 
     def test_stop_all_remove_false(self):
-        class FakeContainer(Bunch):
-            def stop(self, timeout):
-                self.stopped = True
-                self.timeout = timeout
-            def remove(self):
-                self.removed = True
         container1 = FakeContainer(name='service1-drillmaster-1234',
                                    stopped=False,
-                                   removed=False,
                                    network='the-network',
                                    status='running')
         container2 = FakeContainer(name='service2-drillmaster-5678',

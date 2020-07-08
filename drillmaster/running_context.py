@@ -27,6 +27,10 @@ class RunningContext:
     def ready_to_start(self):
         return [x for x in self.agent_set.values() if x.can_start]
 
+    @property
+    def ready_to_stop(self):
+        return [x for x in self.agent_set.values() if x.can_stop]
+
     def service_failed(self, failed_service):
         with self.service_pop_lock:
             self.agent_set.pop(failed_service)
@@ -42,3 +46,11 @@ class RunningContext:
             self.processed_services.append(started_service)
             for agent in self.agent_set.values():
                 agent.process_service_started(started_service)
+
+
+    def service_stopped(self, stopped_service):
+        with self.service_pop_lock:
+            started = self.agent_set.pop(stopped_service)
+            self.processed_services.append(stopped_service)
+            for agent in self.agent_set.values():
+                agent.process_service_stopped(stopped_service)

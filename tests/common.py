@@ -5,23 +5,28 @@ from types import SimpleNamespace as Bunch
 class FakeRunningContext:
     def __init__(self):
         self.started_services = []
+        self.stopped_services = []
         self.failed_services = []
 
-    def service_started(self, service_name):
-        self.started_services.append(service_name)
+    def service_started(self, service):
+        self.started_services.append(service)
+
+    def service_stopped(self, service):
+        self.stopped_services.append(service)
 
     def service_failed(self, failed_service):
         self.failed_services.append(failed_service)
 
 class FakeService:
-    name = 'service1'
     image = 'not/used'
-    dependencies = []
+    dependants = []
     ports = {}
     env = {}
     always_start_new = False
 
-    def __init__(self, fail_ping=False, exception_at_init=None):
+    def __init__(self, name='service1', dependencies=None, fail_ping=False, exception_at_init=None):
+        self.name = name
+        self.dependencies = dependencies or []
         self.fail_ping = fail_ping
         self.exception_at_init = exception_at_init
         self.ping_count = 0
@@ -36,6 +41,12 @@ class FakeService:
         if self.exception_at_init:
             raise self.exception_at_init()
         return True
+
+    def __hash__(self):
+        return hash(self.name)
+
+    def __eq__(self, other):
+        return self.__class__ == other.__class__ and self.name == other.name
 
 
 class FakeContainer(Bunch):

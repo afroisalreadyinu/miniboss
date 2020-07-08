@@ -72,6 +72,25 @@ class Service(metaclass=ServiceMeta):
     def __eq__(self, other):
         return self.__class__ == other.__class__ and self.name == other.name
 
+def connect_services(services):
+    name_counter = Counter()
+    for service in services:
+        name_counter[service.name] += 1
+    multiples = [name for name,count in name_counter.items() if count > 1]
+    if multiples:
+        raise ServiceLoadError("Repeated service names: {:s}".format(",".join(multiples)))
+    all_by_name = {service.name: service for service in services}
+    for service in services:
+        dependencies = service.dependencies[:]
+        for dependency in dependencies:
+            if dependency not in all_by_name:
+                raise ServiceLoadError(
+                    "Dependency {:s} of service {:s} not among services".format(
+                        service.name, dependency))
+        service.dependencies = [all_by_name[dependency] for dependency in dependencies]
+    for service in services:
+        service.dependants = [x for x in services if service in x.dependencies]
+    return all_by_name
 
 class ServiceCollection:
 
@@ -84,24 +103,7 @@ class ServiceCollection:
         services = self._base_class.__subclasses__()
         if len(services) == 0:
             raise ServiceLoadError("No services defined")
-        name_counter = Counter()
-        for service in services:
-            self.all_by_name[service.name] = service()
-            name_counter[service.name] += 1
-        multiples = [name for name,count in name_counter.items() if count > 1]
-        if multiples:
-            raise ServiceLoadError("Repeated service names: {:s}".format(",".join(multiples)))
-        for service in self.all_by_name.values():
-            dependencies = service.dependencies[:]
-            for dependency in dependencies:
-                if dependency not in self.all_by_name:
-                    raise ServiceLoadError(
-                        "Dependency {:s} of service {:s} not among services".format(
-                            service.name, dependency))
-            service.dependencies = [self.all_by_name[dependency] for dependency in dependencies]
-        services = list(self.all_by_name.values())
-        for service in services:
-            service.dependants = [x for x in services if service in x.dependencies]
+        self.all_by_name = connect_services(list(service() for service in services))
         self.check_circular_dependencies()
 
     def exclude_for_start(self, exclude):
@@ -143,12 +145,11 @@ class ServiceCollection:
     def __len__(self):
         return len(self.all_by_name)
 
-
     def start_all(self, options: Options):
         self.running_context = RunningContext(self.all_by_name, options)
         while not (self.running_context.done or self.running_context.failed_services):
             for agent in self.running_context.ready_to_start:
-                agent.start()
+                agent.start_service()
             time.sleep(0.01)
         failed = []
         if self.running_context.failed_services:
@@ -169,8 +170,6 @@ class ServiceCollection:
             name = [x for x in to_be_stopped if x not in dependencies][0]
             prefix = "{}-drillmaster".format(name)
             existings = docker.existing_on_network(prefix, options.network_name)
-            # existings = docker.containers.list(all=True, filters={'network': options.network_name,
-            #                                                       'name': prefix})
             for existing in existings:
                 if existing.status == 'running':
                     existing.stop(timeout=options.timeout)

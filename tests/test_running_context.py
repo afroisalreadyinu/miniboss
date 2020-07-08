@@ -4,32 +4,34 @@ from types import SimpleNamespace as Bunch
 
 from drillmaster.running_context import RunningContext
 from drillmaster.service_agent import Options
+from drillmaster.services import connect_services
 
-class FakeService:
-    def __init__(self, name, dependencies):
-        self.name = name
-        self.dependencies = dependencies
-
-    def __hash__(self):
-        return hash(self.name)
-
-    def __eq__(self, other):
-        return self.__class__ == other.__class__ and self.name == other.name
+from common import FakeService
 
 class RunningContextTests(unittest.TestCase):
 
     def test_service_started(self):
-        service1 = FakeService(name='service1', dependencies=[])
-        service2 = FakeService(name='service2', dependencies=[service1])
-        context = RunningContext({'service1': service1, 'service2': service2},
-                                 Options(False, 'the-network', 50))
+        services = connect_services([FakeService(name='service1', dependencies=[]),
+                                     FakeService(name='service2', dependencies=['service1'])])
+        context = RunningContext(services, Options(False, 'the-network', 50))
         assert len(context.agent_set) == 2
-        context.service_started(service1)
+        context.service_started(services['service1'])
         assert len(context.processed_services) == 1
         assert context.processed_services[0].name == 'service1'
         assert len(context.agent_set) == 1
-        assert service2 in context.agent_set
-        assert context.agent_set[service2].can_start
+        assert services['service2'] in context.agent_set
+        assert context.agent_set[services['service2']].can_start
+
+
+    def test_ready_to_start_and_stop(self):
+        services = connect_services([FakeService(name='service1', dependencies=[]),
+                                     FakeService(name='service2', dependencies=['service1'])])
+        context = RunningContext(services, Options(False, 'the-network', 50))
+        assert len(context.ready_to_start) == 1
+        assert context.ready_to_start[0].service == services['service1']
+        assert len(context.ready_to_stop) == 1
+        assert context.ready_to_stop[0].service == services['service2']
+
 
     def test_service_failed(self):
         service = FakeService(name='service1', dependencies=[])
@@ -37,59 +39,67 @@ class RunningContextTests(unittest.TestCase):
         context.service_failed(service)
         assert len(context.failed_services) == 1
         assert len(context.agent_set) == 0
+        assert len(context.processed_services) == 0
+
+    def test_service_stopped(self):
+        services = connect_services([FakeService(name='service1', dependencies=[]),
+                                     FakeService(name='service2', dependencies=['service1'])])
+        context = RunningContext(services, Options(False, 'the-network', 50))
+        context.service_stopped(services['service2'])
+        assert len(context.agent_set) == 1
+        assert len(context.processed_services) == 1
+        assert context.processed_services[0] is services['service2']
+        assert services['service1'] in context.agent_set
+        assert context.agent_set[services['service1']].can_stop
+
 
     def test_done_on_started(self):
-        service1 = FakeService(name='service1', dependencies=[])
-        service2 = FakeService(name='service2', dependencies=[])
-        context = RunningContext({'service1': service1, 'service2': service2},
-                                 Options(False, 'the-network', 50))
+        services = connect_services([FakeService(name='service1', dependencies=[]),
+                                     FakeService(name='service2', dependencies=[])])
+        context = RunningContext(services, Options(False, 'the-network', 50))
         assert not context.done
-        context.service_started(service1)
+        context.service_started(services['service1'])
         assert not context.done
-        context.service_started(service2)
+        context.service_started(services['service2'])
         assert context.done
         assert len(context.agent_set) == 0
 
     def test_done_on_fail(self):
-        service1 = FakeService(name='service1', dependencies=[])
-        service2 = FakeService(name='service2', dependencies=[])
-        context = RunningContext({'service1': service1, 'service2': service2},
-                                 Options(False, 'the-network', 50))
+        services = connect_services([FakeService(name='service1', dependencies=[]),
+                                     FakeService(name='service2', dependencies=[])])
+        context = RunningContext(services, Options(False, 'the-network', 50))
         assert not context.done
-        context.service_started(service1)
+        context.service_started(services['service1'])
         assert not context.done
-        context.service_failed(service2)
+        context.service_failed(services['service2'])
         assert context.done
 
     def test_fail_dependencies(self):
         """If a service fails to start, all the other services that depend on it are
         also registered as failed"""
-        service1 = FakeService(name='service1', dependencies=[])
-        service2 = FakeService(name='service2', dependencies=[service1])
-        context = RunningContext({'service1': service1, 'service2': service2},
-                                 Options(False, 'the-network', 50))
-        context.service_failed(service1)
+        services = connect_services([FakeService(name='service1', dependencies=[]),
+                                     FakeService(name='service2', dependencies=['service1'])])
+        context = RunningContext(services, Options(False, 'the-network', 50))
+        context.service_failed(services['service1'])
         assert len(context.failed_services) == 2
 
 
     @patch('drillmaster.running_context.threading')
     def test_service_started_lock_call(self, mock_threading):
-        service1 = FakeService(name='service1', dependencies=[])
-        service2 = FakeService(name='service2', dependencies=[service1])
-        context = RunningContext({'service1': service1, 'service2': service2},
-                                 Options(False, 'the-network', 50))
-        context.service_started(service1)
+        services = connect_services([FakeService(name='service1', dependencies=[]),
+                                     FakeService(name='service2', dependencies=['service1'])])
+        context = RunningContext(services, Options(False, 'the-network', 50))
+        context.service_started(services['service1'])
         mock_lock = mock_threading.Lock.return_value
         assert mock_lock.__enter__.call_count == 1
 
 
     @patch('drillmaster.running_context.threading')
     def test_service_failed_lock_call(self, mock_threading):
-        service1 = FakeService(name='service1', dependencies=[])
-        service2 = FakeService(name='service2', dependencies=[service1])
-        context = RunningContext({'service1': service1, 'service2': service2},
-                                 Options(False, 'the-network', 50))
-        context.service_failed(service1)
+        services = connect_services([FakeService(name='service1', dependencies=[]),
+                                     FakeService(name='service2', dependencies=['service1'])])
+        context = RunningContext(services, Options(False, 'the-network', 50))
+        context.service_failed(services['service1'])
         mock_lock = mock_threading.Lock.return_value
         # This has to be 2 because service1 has a dependency, and it has to be
         # locked as well
