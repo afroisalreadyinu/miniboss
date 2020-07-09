@@ -160,24 +160,11 @@ class ServiceCollection:
 
     def stop_all(self, options: StopOptions):
         docker = DockerClient.get_client()
-        to_be_stopped = list(self.all_by_name.keys())
-        while to_be_stopped:
-            all_dependencies = []
-            for service in to_be_stopped:
-                all_dependencies.extend(d.name for d in self.all_by_name[service].dependencies)
-                dependencies = set(all_dependencies)
-            # pick a service that's not a dependency
-            name = [x for x in to_be_stopped if x not in dependencies][0]
-            prefix = "{}-drillmaster".format(name)
-            existings = docker.existing_on_network(prefix, options.network_name)
-            for existing in existings:
-                if existing.status == 'running':
-                    existing.stop(timeout=options.timeout)
-                    logging.info("Stopped container %s", existing.name)
-                if options.remove:
-                    logging.info("Removed container %s", existing.name)
-                    existing.remove()
-            to_be_stopped.remove(name)
+        self.running_context = RunningContext(self.all_by_name, options)
+        while not (self.running_context.done or self.running_context.failed_services):
+            for agent in self.running_context.ready_to_stop:
+                agent.stop_service()
+            time.sleep(0.01)
         if options.remove:
             docker.remove_network(options.network_name)
 
