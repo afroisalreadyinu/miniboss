@@ -47,7 +47,7 @@ class DockerClient:
         return self.lib_client.containers.list(all=True, filters={'network': network_name,
                                                                   'name': name})
 
-    def run_container(self, container_id, network_name):
+    def run_container(self, container_id):
         # The container should be already created but not in state running or starting
         self.lib_client.api.start(container_id)
         # Let's wait a little because the status of the container is
@@ -79,5 +79,5 @@ class DockerClient:
             environment=service.env,
             host_config=host_config,
             networking_config=networking_config)
-        container = self.run_container(container.get('Id'), network_name)
+        container = self.run_container(container.get('Id'))
         logger.info("Started container id %s for service %s", container.id, self.service.name)
