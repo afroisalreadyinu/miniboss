@@ -100,7 +100,9 @@ class ServiceAgent(threading.Thread):
                     existing.start()
                     return RunCondition.STARTED
         self.service.env = Context.extrapolate_values(self.service.env)
-        client.run_service_on_network(self.container_name_prefix, self.service, self.options.network_name)
+        client.run_service_on_network(self.container_name_prefix,
+                                      self.service,
+                                      self.options.network_name)
         return RunCondition.CREATED
 
 
