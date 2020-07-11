@@ -79,6 +79,7 @@ class FakeDocker:
         self._networks_removed = []
         self._services_started = []
         self._existing_queried = []
+        self._containers_ran = []
 
         self._existing_containers = []
 
@@ -97,3 +98,6 @@ class FakeDocker:
 
     def run_service_on_network(self, name_prefix, service, network_name):
         self._services_started.append((name_prefix, service, network_name))
+
+    def run_container(self, container_id):
+        self._containers_ran.append(container_id)

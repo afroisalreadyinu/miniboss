@@ -126,17 +126,13 @@ class ServiceAgentTests(unittest.TestCase):
     def test_start_old_container_if_exists(self):
         service = FakeService()
         agent = ServiceAgent(service, DEFAULT_START_OPTIONS, None)
-        restarted = False
-        def start():
-            nonlocal restarted
-            restarted = True
         self.docker._existing_containers = [Bunch(status='exited',
-                                                  start=start,
                                                   network='the-network',
+                                                  id='longass-container-id',
                                                   name="{}-drillmaster-123".format(service.name))]
         agent.run_image()
         assert len(self.docker._services_started) == 0
-        assert restarted
+        assert self.docker._containers_ran == ['longass-container-id']
 
 
     def test_start_new_if_run_new_containers(self):
@@ -201,16 +197,15 @@ class ServiceAgentTests(unittest.TestCase):
         service = FakeService()
         fake_context = FakeRunningContext()
         agent = ServiceAgent(service, Options(False, 'the-network', 1), fake_context)
-        def start():
-            pass
         self.docker._existing_containers = [Bunch(status='exited',
-                                                  start=start,
                                                   network='the-network',
+                                                  id='longass-container-id',
                                                   name="{}-drillmaster-123".format(service.name))]
         agent.start_service()
         agent.join()
         assert service.ping_count == 1
         assert not service.init_called
+        assert self.docker._containers_ran == ['longass-container-id']
 
 
     @patch('drillmaster.service_agent.time')
