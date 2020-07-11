@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en">
+  <head> <title>Todos</title> </head>
+  <body>
+    <h1>Todos</h1>
+    <ul>
+      {% for todo in todos %}
+      <li>{{ todo.what_to_do }}</li>
+      {% endfor %}
+    </ul>
+    <form method="POST" action="/add/">
+      <label for="what-to-do">What to do:</label>
+      <input type="text" id="what-to-do" name="what-to-do">
+      <input type="submit" value="Add todo">
+    </form>
+  </body>
+</html>
