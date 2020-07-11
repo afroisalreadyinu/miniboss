@@ -22,7 +22,7 @@ changes. Lifecycle hooks have been
 deemed to be in the domain of `docker-compose`.
 
 The intention is to develop this package to a full-blown distributed testing
-framework, but I haven't figured out the use case yet.
+framework, which will probably take some time.
 
 ## Usage
 
@@ -32,39 +32,39 @@ Here is a very simple service specification:
 #! /usr/bin/env python3
 import drillmaster
 
-DB_PORT = 5433
-
 class Database(drillmaster.Service):
-    image = "postgres:10.6"
     name = "appdb"
+    image = "postgres:10.6"
     env = {"POSTGRES_PASSWORD": "dbpwd",
            "POSTGRES_USER": "dbuser",
            "POSTGRES_DB": "appdb",
-           "PGPORT": DB_PORT }
-    ports = {DB_PORT: DB_PORT}
+           "PGPORT": 5433 }
+    ports = {5433: 5433}
 
 class Application(drillmaster.Service):
+    name = "python-todo"
+    image = "afroisalreadyin/python-todo:0.0.1"
+    env = {"DB_URI": "postgresql://dbuser:dbpwd@localhost:5433/appdb"}
     dependencies = ["appdb"]
-    pass
 
 if __name__ == "__main__":
-    drillmaster.main()
+    drillmaster.cli()
 ```
 
-A service is defined by subclassing `drillmaster.Service` and overriding in the
-minimal case the fields `image` and `name`. The `env` field specifies the
-enviornment variables; as in the case of the first service, you can use normal
-variables in this and any other value. The other available fields will be
-explained later. The application service `Application` depends on the the
-database service, specified with the `dependencies` field. As in
-`docker-compose`, this means that it will get started after `Database` reaches
-running status.
+A **service** is defined by subclassing `drillmaster.Service` and overriding, in
+the minimal case, the fields `image` and `name`. The `env` field specifies the
+enviornment variables; as in the case of the `appdb` service, you can use
+ordinary variables in this and any other value. The other available fields will
+be explained later. The application service `Application` depends on `appdb`,
+specified with the `dependencies` field. As in `docker-compose`, this means that
+it will get started after `Database` reaches running status.
 
-The `drillmaster.main` function is the main entry point for the tool; you can
-run this script without arguments to get the following output:
+The `drillmaster.cli` function is the main entry point; you need to execute it
+in the main routine of your scirpt. Let's run this script without arguments,
+which leads to the following output:
 
 ```
-Usage: integration_test.py [OPTIONS] COMMAND [ARGS]...
+Usage: drillmaster-main.py [OPTIONS] COMMAND [ARGS]...
 
 Options:
   --help  Show this message and exit.
@@ -74,6 +74,8 @@ Commands:
   stop
 ```
 
+We can start our small ensemble of services by running `./drillmaster-main.py
+start`.
 
 
 ### Lifecycle events
