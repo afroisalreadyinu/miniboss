@@ -47,13 +47,31 @@ class DockerClient:
         return self.lib_client.containers.list(all=True, filters={'network': network_name,
                                                                   'name': name})
 
+    def run_container(self, container_id, network_name):
+        # The container should be already created but not in state running or starting
+        self.lib_client.api.start(container_id)
+        # Let's wait a little because the status of the container is
+        # not set right away
+        time.sleep(1)
+        try:
+            container = self.lib_client.containers.get(container_id)
+        except docker.errors.NotFound:
+            raise DockerException(
+                "Something went terribly wrong: Could not find container {:s}".format(
+                    container_id))
+        if container.status != 'running':
+            logs = self.lib_client.api.logs(container.id).decode('utf-8')
+            raise DockerException(logs)
+        return container
+
+
     def run_service_on_network(self, name_prefix, service, network_name): # service: services.Service
         container_name = "{:s}-{:s}".format(name_prefix, ''.join(random.sample(DIGITS, 4)))
         networking_config = self.lib_client.api.create_networking_config({
             network_name: self.lib_client.api.create_endpoint_config(aliases=[service.name])
         })
         host_config=self.lib_client.api.create_host_config(port_bindings=service.ports)
-        container_image = self.lib_client.api.create_container(
+        container = self.lib_client.api.create_container(
             service.image,
             detach=True,
             name=container_name,
@@ -61,19 +79,5 @@ class DockerClient:
             environment=service.env,
             host_config=host_config,
             networking_config=networking_config)
-        running = self.lib_client.api.start(container_image.get('Id'))
-        if running is None:
-            # We need to wait a little because the status of the container is
-            # not set right away
-            time.sleep(1)
-            containers = self.existing_on_network(container_name, network_name)
-            if not containers:
-                raise DockerException(
-                    "Something went terribly wrong: Could not create container for {:s}".format(
-                        container_name))
-            container = containers[0]
-            if container.status != 'running':
-                logs = self.lib_client.api.logs(container.id).decode('utf-8')
-                raise DockerException(logs)
-            import pdb;pdb.set_trace()
-        logger.info("Started container id %s for service %s", running.id, self.service.name)
+        container = self.run_container(container.get('Id'), network_name)
+        logger.info("Started container id %s for service %s", container.id, self.service.name)

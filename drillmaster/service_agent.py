@@ -97,7 +97,7 @@ class ServiceAgent(threading.Thread):
             elif existing.status == 'exited':
                 if not (self.options.run_new_containers or self.service.always_start_new):
                     logger.info("There is an existing container for %s, not creating a new one", self.service.name)
-                    existing.start()
+                    client.run_container(existing.id, self.options.network_name)
                     return RunCondition.STARTED
         self.service.env = Context.extrapolate_values(self.service.env)
         client.run_service_on_network(self.container_name_prefix,
