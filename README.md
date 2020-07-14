@@ -37,15 +37,16 @@ class Database(drillmaster.Service):
     image = "postgres:10.6"
     env = {"POSTGRES_PASSWORD": "dbpwd",
            "POSTGRES_USER": "dbuser",
-           "POSTGRES_DB": "appdb",
-           "PGPORT": 5433 }
-    ports = {5433: 5433}
+           "POSTGRES_DB": "appdb" }
+    ports = {5432: 5433}
 
 class Application(drillmaster.Service):
     name = "python-todo"
     image = "afroisalreadyin/python-todo:0.0.1"
-    env = {"DB_URI": "postgresql://dbuser:dbpwd@appdb:5433/appdb"}
+    env = {"DB_URI": "postgresql://dbuser:dbpwd@appdb:5432/appdb"}
     dependencies = ["appdb"]
+    ports = {8080: 8080}
+    stop_signal = "SIGINT"
 
 if __name__ == "__main__":
     drillmaster.cli()
@@ -55,9 +56,11 @@ A **service** is defined by subclassing `drillmaster.Service` and overriding, in
 the minimal case, the fields `image` and `name`. The `env` field specifies the
 enviornment variables; as in the case of the `appdb` service, you can use
 ordinary variables in this and any other value. The other available fields will
-be explained later. The application service `Application` depends on `appdb`,
-specified with the `dependencies` field. As in `docker-compose`, this means that
-it will get started after `Database` reaches running status.
+be explained later. Here, we are creating two services: The application service
+`python-todo` (a simple Flask todo application defined in the `sample-apps`
+directory) depends on `appdb` (a Postgresql container), specified through the
+`dependencies` field. As in `docker-compose`, this means that `python-todo` will
+get started after `appdb` reaches running status.
 
 The `drillmaster.cli` function is the main entry point; you need to execute it
 in the main routine of your scirpt. Let's run this script without arguments,
@@ -75,8 +78,17 @@ Commands:
 ```
 
 We can start our small ensemble of services by running `./drillmaster-main.py
-start`.
-
+start`. After spitting out some logging text, you will see that starting the
+containers failed, with the `python-todo` service throwing an error that it
+cannot reach the database. The reason for this error is that the Postgresql
+process has started, but is still initializing, and does not accept connections
+yet. The standard way of dealing with this issue is to include backoff code in
+your application that checks on the database port regularly, until the
+connection is accepted. `drillmaster` offers an alternative with [lifecycle
+events](#lifecycle-events). For the time being, you can simply rerun
+`./drillmaster-main.py start`, which will restart only the `python-todo`
+service, as the other one is already running. You should be able to navigate to
+`http://localhost:8080` and view the todo app page.
 
 ### Lifecycle events
 
@@ -87,6 +99,15 @@ succeed. The `ping` method is executed repeatedly, with 0.1 seconds gap, for
 `timeout` seconds, until it returns True. Once `ping` returns, `post_start_init`
 is called.
 
+## Ports and hosts
+
+TBW
+
+### The global context
+
+TBW
+
 ## Todos
 
 - [ ] Don't use existing container if env changed
+- [ ] Stop signal as an option on service def
