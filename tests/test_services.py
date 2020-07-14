@@ -449,6 +449,39 @@ class ServiceCollectionTests(unittest.TestCase):
         assert container1.removed_at > container2.removed_at > container3.removed_at
         assert self.docker._networks_removed == ['the-network']
 
+    def test_stop_with_remove_and_exclude(self):
+        container1 = FakeContainer(name='service1-drillmaster-1234',
+                                   network='the-network',
+                                   status='running')
+        container2 = FakeContainer(name='service2-drillmaster-5678',
+                                   network='the-network',
+                                   status='running')
+        self.docker._existing_containers = [container1, container2]
+        collection = ServiceCollection()
+        class NewServiceBase(Service):
+            name = "not used"
+            image = "not used"
+
+        class ServiceOne(NewServiceBase):
+            name = "service1"
+            image = "howareyou/image"
+
+        class ServiceTwo(NewServiceBase):
+            name = "service2"
+            image = "howareyou/image"
+
+        collection._base_class = NewServiceBase
+        collection.load_definitions()
+        collection.exclude_for_stop(['service2'])
+        collection.stop_all(StopOptions('the-network', True, 50))
+        assert container1.stopped
+        assert container1.removed_at is not None
+        # service2 was excluded
+        assert not container2.stopped
+        assert container2.removed_at is None
+        # If excluded is not empty, network should not be removed
+        assert self.docker._networks_removed == []
+
 class ServiceCommandTests(unittest.TestCase):
 
     def setUp(self):

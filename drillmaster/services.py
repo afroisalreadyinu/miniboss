@@ -98,6 +98,7 @@ class ServiceCollection:
         self.all_by_name = {}
         self._base_class = Service
         self.running_context = None
+        self.excluded = []
 
     def load_definitions(self):
         services = self._base_class.__subclasses__()
@@ -107,6 +108,7 @@ class ServiceCollection:
         self.check_circular_dependencies()
 
     def exclude_for_start(self, exclude):
+        self.excluded = exclude
         for service in self.all_by_name.values():
             excluded_deps = [dep.name for dep in service.dependencies if dep.name in exclude]
             if excluded_deps:
@@ -117,6 +119,7 @@ class ServiceCollection:
 
 
     def exclude_for_stop(self, exclude):
+        self.excluded = exclude
         for service_name in exclude:
             service = self.all_by_name[service_name]
             deps_to_be_stopped = [dep.name for dep in service.dependencies if dep.name not in exclude]
@@ -165,7 +168,7 @@ class ServiceCollection:
             for agent in self.running_context.ready_to_stop:
                 agent.stop_service()
             time.sleep(0.01)
-        if options.remove:
+        if options.remove and not self.excluded:
             docker.remove_network(options.network_name)
 
 
