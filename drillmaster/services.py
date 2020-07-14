@@ -155,7 +155,7 @@ class ServiceCollection:
     def __len__(self):
         return len(self.all_by_name)
 
-    def start_all(self, options: Options):
+    def start_all(self, options: Options, reload=None):
         self.running_context = RunningContext(self.all_by_name, options)
         while not (self.running_context.done or self.running_context.failed_services):
             for agent in self.running_context.ready_to_start:
@@ -179,7 +179,7 @@ class ServiceCollection:
             docker.remove_network(options.network_name)
 
 
-    def reload_service(self, service_name, options: Options):
+    def update_for_base_service(self, service_name):
         if service_name not in self.all_by_name:
             raise ServiceLoadError("No such service: {:s}".format(service_name))
         queue = deque()
@@ -192,8 +192,6 @@ class ServiceCollection:
                 if dependant not in queue and dependant not in required:
                     queue.append(dependant)
         self.all_by_name = {service.name: service for service in required}
-        self.stop_all(options)
-        #self.start_all(options)
 
 
 def start_services(run_new_containers, exclude, network_name, timeout):
@@ -217,6 +215,11 @@ def stop_services(exclude, network_name, remove, timeout):
 
 def reload_service(service, network_name, remove, timeout, run_new_containers):
     options = Options(network_name, timeout, remove, run_new_containers)
-    collection = ServiceCollection()
-    collection.load_definitions()
-    collection.reload_service(service, options)
+    stop_collection = ServiceCollection()
+    stop_collection.load_definitions()
+    stop_collection.update_for_base_service(service)
+    stop_collection.stop_all(options)
+
+    start_collection = ServiceCollection()
+    start_collection.load_definitions()
+    start_collection.start_all(reload=service)

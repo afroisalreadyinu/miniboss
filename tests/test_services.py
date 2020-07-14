@@ -492,7 +492,7 @@ class ServiceCollectionTests(unittest.TestCase):
         # If excluded is not empty, network should not be removed
         assert self.docker._networks_removed == []
 
-    def test_reload_service(self):
+    def test_update_for_base_service(self):
         container1 = FakeContainer(name='service1-drillmaster-1234',
                                    network='the-network',
                                    status='running')
@@ -524,12 +524,13 @@ class ServiceCollectionTests(unittest.TestCase):
 
         collection._base_class = NewServiceBase
         collection.load_definitions()
-        collection.reload_service('service2', DEFAULT_OPTIONS)
-        # The services should first be stopped
+        collection.update_for_base_service('service2')
+        assert collection.all_by_name == {'service2': ServiceTwo(),
+                                          'service3': ServiceThree()}
+        collection.stop_all(DEFAULT_OPTIONS)
         assert not container1.stopped
         assert container2.stopped
         assert container3.stopped
-        # And then restarted
 
 
 class ServiceCommandTests(unittest.TestCase):
