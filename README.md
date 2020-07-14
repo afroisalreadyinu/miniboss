@@ -55,12 +55,13 @@ if __name__ == "__main__":
 A **service** is defined by subclassing `drillmaster.Service` and overriding, in
 the minimal case, the fields `image` and `name`. The `env` field specifies the
 enviornment variables; as in the case of the `appdb` service, you can use
-ordinary variables in this and any other value. The other available fields will
-be explained later. Here, we are creating two services: The application service
-`python-todo` (a simple Flask todo application defined in the `sample-apps`
-directory) depends on `appdb` (a Postgresql container), specified through the
-`dependencies` field. As in `docker-compose`, this means that `python-todo` will
-get started after `appdb` reaches running status.
+ordinary variables in this and any other value. The other available fields are
+explained in the section [Service definition
+fields](#service-definition-fields). Here, we are creating two services: The
+application service `python-todo` (a simple Flask todo application defined in
+the `sample-apps` directory) depends on `appdb` (a Postgresql container),
+specified through the `dependencies` field. As in `docker-compose`, this means
+that `python-todo` will get started after `appdb` reaches running status.
 
 The `drillmaster.cli` function is the main entry point; you need to execute it
 in the main routine of your scirpt. Let's run this script without arguments,
@@ -122,22 +123,37 @@ TBW
 
 TBW
 
-## Service fields
+## Service definition fields
 
-- **name**: The name of the service. Must be unique. The container can be
-    contacted on the network under this name; must therefore be a valid
+- **name**: The name of the service. Must be non-empty and unique. The container
+    can be contacted on the network under this name; must therefore be a valid
     hostname.
 
-- **image**: Container image of the service.
+- **image**: Container image of the service. Must be non-empty.
+
+- **dependencies**: A list of the dependencies of a service by name. If there
+    are any invalid or circular dependencies, an error will be raised.
 
 - **env**: Environment variables to be injected into the service container, as a
     dict. The values of this dict can contain extrapolations from the global
     context; these extrapolations are executed when the service starts.
 
-- **dependencies**: A list of the dependencies of a service by name. If there
-    are any invalid or circular dependencies, an error will be raised.
+- **ports**: A mapping of the ports that must be exposed on the running host.
+    Keys are ports local to the container, values are the ports of the running
+    host. See [Ports and hosts](#ports-and-hosts) for more details on
+    networking.
+
+- **always_start_new**: Whether to create a new container each time a service is
+    started or restart an existing but stopped container. Default value is
+    `False`, meaning that by default existing container will be restarted.
+
+- **stop_signal**: Which stop signal Docker should use to stop the container by
+    name (not by integer value, so don't use values from the `signal` standard
+    library module here). Default is `SIGTERM`. Accepted values are `SIGINT`,
+    `SIGTERM`, `SIGKILL` and `SIGQUIT`.
 
 ## Todos
 
+- [ ] Build and restart a container
 - [ ] Don't use existing container if env changed
 - [ ] Stop signal as an option on service def
