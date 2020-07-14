@@ -120,7 +120,9 @@ to the correct states and execute actions on the container:
   in this method will be propagated, and also cause the service to fail.
 
 - **`Service.post_start_init()`**: This method is executed after a successful
-  `ping`.
+  `ping`. It can be used to prime a service by e.g. creating data on it, or
+  bringing it to a certain state. You can also use the global context in this
+  method; see [The global context](#the-global-context) for details.
 
 Both of these methods do nothing by default.
 
@@ -130,33 +132,35 @@ TBW
 
 ### The global context
 
-TBW
+The object `drillmaster.Context`, derived from the standard dict, can be used to
+store values that are accessible to other service definitions, especially in the
+`env` field.
 
 ## Service definition fields
 
-- **name**: The name of the service. Must be non-empty and unique. The container
-    can be contacted on the network under this name; must therefore be a valid
-    hostname.
+- **`name`**: The name of the service. Must be non-empty and unique. The
+    container can be contacted on the network under this name; must therefore be
+    a valid hostname.
 
-- **image**: Container image of the service. Must be non-empty.
+- **`image`**: Container image of the service. Must be non-empty.
 
-- **dependencies**: A list of the dependencies of a service by name. If there
+- **`dependencies`**: A list of the dependencies of a service by name. If there
     are any invalid or circular dependencies, an error will be raised.
 
-- **env**: Environment variables to be injected into the service container, as a
+- **`env`**: Environment variables to be injected into the service container, as a
     dict. The values of this dict can contain extrapolations from the global
     context; these extrapolations are executed when the service starts.
 
-- **ports**: A mapping of the ports that must be exposed on the running host.
+- **`ports`**: A mapping of the ports that must be exposed on the running host.
     Keys are ports local to the container, values are the ports of the running
     host. See [Ports and hosts](#ports-and-hosts) for more details on
     networking.
 
-- **always_start_new**: Whether to create a new container each time a service is
+- **`always_start_new`**: Whether to create a new container each time a service is
     started or restart an existing but stopped container. Default value is
     `False`, meaning that by default existing container will be restarted.
 
-- **stop_signal**: Which stop signal Docker should use to stop the container by
+- **`stop_signal`**: Which stop signal Docker should use to stop the container by
     name (not by integer value, so don't use values from the `signal` standard
     library module here). Default is `SIGTERM`. Accepted values are `SIGINT`,
     `SIGTERM`, `SIGKILL` and `SIGQUIT`.
