@@ -90,7 +90,22 @@ events](#lifecycle-events). For the time being, you can simply rerun
 service, as the other one is already running. You should be able to navigate to
 `http://localhost:8080` and view the todo app page.
 
-### Lifecycle events
+You can also exclude services from the list of services to be started with the
+`--exclude` argument; `./drillmaster-main.py start --exclude python-todo` will
+start only `appdb`. If you exclude a service that is depended on by another, you
+will get an error.
+
+### Stopping services
+
+Once you are done working, you can stop the running services with
+`drillmaster-main.py stop`. This will stop the services in the reverse order of
+dependency, i.e. first `python-todo` and then `appdb`. Exclusion is possible
+also when stopping services with the same `--exclude` argument. Running
+`./drillmaster-main.py stop --exclude appdb` will stop only the `python-todo`
+service. If you exclude a service whose dependency will be stopped, you will get
+an error.
+
+## Lifecycle events
 
 A service has two methods that can be overriden: `ping` and `post_start_init`.
 Both of these by default do nothing; when implemented, they are executed one
@@ -106,6 +121,21 @@ TBW
 ### The global context
 
 TBW
+
+## Service fields
+
+- **name**: The name of the service. Must be unique. The container can be
+    contacted on the network under this name; must therefore be a valid
+    hostname.
+
+- **image**: Container image of the service.
+
+- **env**: Environment variables to be injected into the service container, as a
+    dict. The values of this dict can contain extrapolations from the global
+    context; these extrapolations are executed when the service starts.
+
+- **dependencies**: A list of the dependencies of a service by name. If there
+    are any invalid or circular dependencies, an error will be raised.
 
 ## Todos
 
