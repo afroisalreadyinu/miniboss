@@ -508,6 +508,9 @@ class ServiceCommandTests(unittest.TestCase):
             def stop_all(self, options):
                 self.options = options
                 self.stopped = True
+            def reload_service(self, service_name, options):
+                self.options = options
+                self.reloaded = service_name
         self.collection = MockServiceCollection()
         services.ServiceCollection = lambda: self.collection
 
@@ -526,3 +529,10 @@ class ServiceCommandTests(unittest.TestCase):
         assert self.collection.options.timeout == 50
         assert not self.collection.options.remove
         assert self.collection.excluded == ['test']
+
+    def test_reload_service(self):
+        services.reload_service('the-service', "drillmaster", False, 50)
+        assert self.collection.reloaded == 'the-service'
+        assert self.collection.options.network_name == 'drillmaster'
+        assert self.collection.options.timeout == 50
+        assert not self.collection.options.remove

@@ -179,6 +179,10 @@ class ServiceCollection:
             docker.remove_network(options.network_name)
 
 
+    def reload_service(self, service_name, options: Options):
+        pass
+
+
 def start_services(run_new_containers, exclude, network_name, timeout):
     docker = DockerClient.get_client()
     collection = ServiceCollection()
@@ -196,3 +200,10 @@ def stop_services(exclude, network_name, remove, timeout):
     collection.load_definitions()
     collection.exclude_for_stop(exclude)
     collection.stop_all(options)
+
+
+def reload_service(service, network_name, remove, timeout):
+    options = StopOptions(network_name, remove, timeout)
+    collection = ServiceCollection()
+    collection.load_definitions()
+    collection.reload_service(service, options)

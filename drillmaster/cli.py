@@ -25,3 +25,11 @@ def start(run_new_containers, exclude, network_name, timeout):
 def stop(exclude, network_name, remove, timeout):
     exclude = exclude.split(",") if exclude else []
     services.stop_services(exclude, network_name, remove, timeout)
+
+@cli.command()
+@click.option("--network-name", default="drillmaster-network", help="Network to use")
+@click.option("--timeout", type=int, default=50, help="Timeout for stopping a service (seconds)")
+@click.option("--remove", is_flag=True, default=False, help="Remove stopped container")
+@click.argument('service')
+def reload(service, network_name, timeout):
+    services.reload_service(service, network_name, remove, timeout)
