@@ -13,7 +13,7 @@ class Database(drillmaster.Service):
 class Application(drillmaster.Service):
     name = "python-todo"
     image = "afroisalreadyin/python-todo:0.0.1"
-    env = {"DB_URI": "postgresql://dbuser:dbpwd@localhost:5433/appdb"}
+    env = {"DB_URI": "postgresql://dbuser:dbpwd@appdb:5433/appdb"}
     dependencies = ["appdb"]
 
 if __name__ == "__main__":

@@ -44,7 +44,7 @@ class Database(drillmaster.Service):
 class Application(drillmaster.Service):
     name = "python-todo"
     image = "afroisalreadyin/python-todo:0.0.1"
-    env = {"DB_URI": "postgresql://dbuser:dbpwd@localhost:5433/appdb"}
+    env = {"DB_URI": "postgresql://dbuser:dbpwd@appdb:5433/appdb"}
     dependencies = ["appdb"]
 
 if __name__ == "__main__":
@@ -86,3 +86,7 @@ after the other, and the service is not registered as `running` before each
 succeed. The `ping` method is executed repeatedly, with 0.1 seconds gap, for
 `timeout` seconds, until it returns True. Once `ping` returns, `post_start_init`
 is called.
+
+## Todos
+
+- [ ] Don't use existing container if env changed
