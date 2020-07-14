@@ -3,6 +3,7 @@ import random
 import time
 
 import docker
+import docker.errors
 
 from drillmaster.context import Context
 
@@ -71,13 +72,16 @@ class DockerClient:
             network_name: self.lib_client.api.create_endpoint_config(aliases=[service.name])
         })
         host_config=self.lib_client.api.create_host_config(port_bindings=service.ports)
-        container = self.lib_client.api.create_container(
-            service.image,
-            detach=True,
-            name=container_name,
-            ports=list(service.ports.keys()),
-            environment=service.env,
-            host_config=host_config,
-            networking_config=networking_config)
+        try:
+            container = self.lib_client.api.create_container(
+                service.image,
+                detach=True,
+                name=container_name,
+                ports=list(service.ports.keys()),
+                environment=service.env,
+                host_config=host_config,
+                networking_config=networking_config)
+        except docker.errors.ImageNotFound:
+            raise DockerException("Image {:s} could not be found; please make sure it exists".format(service.image)) from None
         container = self.run_container(container.get('Id'))
-        logger.info("Started container id %s for service %s", container.id, self.service.name)
+        logger.info("Started container id %s for service %s", container.id, service.name)
