@@ -169,4 +169,4 @@ store values that are accessible to other service definitions, especially in the
 
 - [ ] Build and restart a container
 - [ ] Don't use existing container if env changed
-- [ ] Stop signal as an option on service def
+- [x] Stop signal as an option on service def
