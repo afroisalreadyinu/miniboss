@@ -94,7 +94,9 @@ service, as the other one is already running. You should be able to navigate to
 You can also exclude services from the list of services to be started with the
 `--exclude` argument; `./drillmaster-main.py start --exclude python-todo` will
 start only `appdb`. If you exclude a service that is depended on by another, you
-will get an error.
+will get an error. If a service fails to start (i.e. container cannot be started
+or the lifecycle events fail), it and all the other services that depend on it
+are registered as failed.
 
 ### Stopping services
 
@@ -108,12 +110,19 @@ an error.
 
 ## Lifecycle events
 
-A service has two methods that can be overriden: `ping` and `post_start_init`.
-Both of these by default do nothing; when implemented, they are executed one
-after the other, and the service is not registered as `running` before each
-succeed. The `ping` method is executed repeatedly, with 0.1 seconds gap, for
-`timeout` seconds, until it returns True. Once `ping` returns, `post_start_init`
-is called.
+`drillmaster.Service` has two methods that can be overriden in order to move it
+to the correct states and execute actions on the container:
+
+- **`Service.ping()`**: Executed repeatedly right after the service starts with
+  a 0.1 second delay between executions. If this method does not return `True`
+  within a given timeout value (can be set with the `--timeout` argument,
+  default is 300 seconds), the service is registered as failed. Any exceptions
+  in this method will be propagated, and also cause the service to fail.
+
+- **`Service.post_start_init()`**: This method is executed after a successful
+  `ping`.
+
+Both of these methods do nothing by default.
 
 ## Ports and hosts
 
