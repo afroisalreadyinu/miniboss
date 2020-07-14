@@ -490,6 +490,31 @@ class ServiceCollectionTests(unittest.TestCase):
         # If excluded is not empty, network should not be removed
         assert self.docker._networks_removed == []
 
+    def test_reload_service(self):
+        collection = ServiceCollection()
+        class NewServiceBase(Service):
+            name = "not used"
+            image = "not used"
+
+        class ServiceOne(NewServiceBase):
+            name = "service1"
+            image = "howareyou/image"
+
+        class ServiceTwo(NewServiceBase):
+            name = "service2"
+            image = "howareyou/image"
+            dependencies = ['service1']
+
+        class ServiceThree(NewServiceBase):
+            name = 'service3'
+            image = 'howareyou/image'
+            dependencies = ['service1', 'service2']
+
+        collection._base_class = NewServiceBase
+        collection.load_definitions()
+        collection.reload_service('service2', Options(False, 'the-network', 50))
+
+
 class ServiceCommandTests(unittest.TestCase):
 
     def setUp(self):

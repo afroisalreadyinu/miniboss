@@ -1,6 +1,6 @@
 import time
 import logging
-from collections import Counter, Mapping
+from collections import Counter, Mapping, deque
 import threading
 import copy
 from itertools import chain
@@ -180,7 +180,19 @@ class ServiceCollection:
 
 
     def reload_service(self, service_name, options: Options):
-        pass
+        if service_name not in self.all_by_name:
+            raise ServiceLoadError("No such service: {:s}".format(service_name))
+        queue = deque()
+        queue.append(self.all_by_name[service_name])
+        required = []
+        while queue:
+            service = queue.popleft()
+            required.append(service)
+            for dependant in service.dependants:
+                if dependant not in queue and dependant not in required:
+                    queue.append(dependant)
+        self.all_by_name = {service.name: service for service in required}
+        self.stop_all(options)
 
 
 def start_services(run_new_containers, exclude, network_name, timeout):
