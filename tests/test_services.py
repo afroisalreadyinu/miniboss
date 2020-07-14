@@ -58,6 +58,14 @@ class ServiceDefinitionTests(unittest.TestCase):
                 env = {}
                 always_start_new = 123
 
+    def test_invalid_signal_name(self):
+        with pytest.raises(ServiceDefinitionError):
+            class NewService(Service):
+                name = "yes"
+                image = "yes"
+                env = {}
+                stop_signal = "HELLO"
+
     def test_hashable(self):
         class NewService(Service):
             name = "service_one"

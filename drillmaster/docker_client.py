@@ -80,7 +80,8 @@ class DockerClient:
                 ports=list(service.ports.keys()),
                 environment=service.env,
                 host_config=host_config,
-                networking_config=networking_config)
+                networking_config=networking_config,
+                stop_signal=service.stop_signal)
         except docker.errors.ImageNotFound:
             raise DockerException("Image {:s} could not be found; please make sure it exists".format(service.image)) from None
         container = self.run_container(container.get('Id'))

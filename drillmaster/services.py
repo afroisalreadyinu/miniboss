@@ -23,6 +23,7 @@ logger = logging.getLogger(__name__)
 
 KEYCLOAK_PORT = 8090
 OSTKREUZ_PORT = 8080
+ALLOWED_STOP_SIGNALS = ["SIGINT", "SIGTERM", "SIGKILL", "SIGQUIT"]
 
 
 class ServiceLoadError(Exception):
@@ -50,6 +51,11 @@ class ServiceMeta(type):
         if "always_start_new" in attrdict and not isinstance(attrdict["always_start_new"], bool):
             raise ServiceDefinitionError(
                 "Field 'always_start_new' of service class {:s} must be a boolean".format(name))
+        if "stop_signal" in attrdict:
+            signal_name = attrdict["stop_signal"]
+            if signal_name not in ALLOWED_STOP_SIGNALS:
+                raise ServiceDefinitionError(
+                    "Stop signal not allowed: {:s}".format(signal_name))
         return super().__new__(cls, name, bases, attrdict)
 
 
@@ -59,6 +65,7 @@ class Service(metaclass=ServiceMeta):
     ports = {}
     env = {}
     always_start_new = False
+    stop_signal = "SIGTERM"
 
     def ping(self):
         return True
