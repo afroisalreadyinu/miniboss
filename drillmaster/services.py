@@ -11,7 +11,7 @@ import furl
 import requests.exceptions
 
 from drillmaster.docker_client import DockerClient
-from drillmaster.service_agent import Options, StopOptions
+from drillmaster.service_agent import Options
 from drillmaster.running_context import RunningContext
 
 logging.basicConfig(
@@ -168,7 +168,7 @@ class ServiceCollection:
         return [x for x in self.all_by_name.keys() if x not in failed]
 
 
-    def stop_all(self, options: StopOptions):
+    def stop_all(self, options: Options):
         docker = DockerClient.get_client()
         self.running_context = RunningContext(self.all_by_name, options)
         while not (self.running_context.done or self.running_context.failed_services):
@@ -193,6 +193,7 @@ class ServiceCollection:
                     queue.append(dependant)
         self.all_by_name = {service.name: service for service in required}
         self.stop_all(options)
+        #self.start_all(options)
 
 
 def start_services(run_new_containers, exclude, network_name, timeout):
@@ -201,21 +202,21 @@ def start_services(run_new_containers, exclude, network_name, timeout):
     collection.load_definitions()
     collection.exclude_for_start(exclude)
     docker.create_network(network_name)
-    service_names = collection.start_all(Options(run_new_containers, network_name, timeout))
+    service_names = collection.start_all(Options(network_name, timeout, run_new_containers, False))
     logger.info("Started services: %s", ", ".join(service_names))
 
 
 def stop_services(exclude, network_name, remove, timeout):
     logger.info("Stopping services (excluded: %s)", "none" if not exclude else ",".join(exclude))
-    options = StopOptions(network_name, remove, timeout)
+    options = Options(network_name, timeout, False, remove)
     collection = ServiceCollection()
     collection.load_definitions()
     collection.exclude_for_stop(exclude)
     collection.stop_all(options)
 
 
-def reload_service(service, network_name, remove, timeout):
-    options = StopOptions(network_name, remove, timeout)
+def reload_service(service, network_name, remove, timeout, run_new_containers):
+    options = Options(network_name, timeout, remove, run_new_containers)
     collection = ServiceCollection()
     collection.load_definitions()
     collection.reload_service(service, options)

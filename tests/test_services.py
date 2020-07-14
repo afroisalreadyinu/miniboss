@@ -10,10 +10,12 @@ from drillmaster.services import (connect_services,
                                   ServiceCollection,
                                   ServiceDefinitionError)
 
-from drillmaster.service_agent import Options, StopOptions, ServiceAgent
+from drillmaster.service_agent import Options, ServiceAgent
 from drillmaster import services, service_agent
 
 from common import FakeDocker, FakeContainer
+
+DEFAULT_OPTIONS = Options('the-network', 50, False, False)
 
 class ServiceDefinitionTests(unittest.TestCase):
 
@@ -305,7 +307,7 @@ class ServiceCollectionTests(unittest.TestCase):
             name = "howareyou"
             image = "howareyou/image"
         collection.load_definitions()
-        retval = collection.start_all(Options(False, 'the-network', 50))
+        retval = collection.start_all(DEFAULT_OPTIONS)
         assert set(retval) == {"hello", "goodbye", "howareyou"}
         assert len(self.docker._services_started) == 3
         # The one without dependencies should have been started first
@@ -326,7 +328,7 @@ class ServiceCollectionTests(unittest.TestCase):
                 raise ValueError("I failed miserably")
         collection._base_class = NewServiceBase
         collection.load_definitions()
-        started = collection.start_all(Options(False, 'the-network', 50))
+        started = collection.start_all(DEFAULT_OPTIONS)
         assert started == []
 
 
@@ -349,7 +351,7 @@ class ServiceCollectionTests(unittest.TestCase):
 
         collection._base_class = NewServiceBase
         collection.load_definitions()
-        started = collection.start_all(Options(False, 'the-network', 50))
+        started = collection.start_all(DEFAULT_OPTIONS)
         assert started == ["howareyou"]
 
 
@@ -379,7 +381,7 @@ class ServiceCollectionTests(unittest.TestCase):
 
         collection._base_class = NewServiceBase
         collection.load_definitions()
-        collection.stop_all(StopOptions('the-network', False, 50))
+        collection.stop_all(DEFAULT_OPTIONS)
         assert container1.stopped
         assert container1.timeout == 50
         assert not container2.stopped
@@ -407,7 +409,7 @@ class ServiceCollectionTests(unittest.TestCase):
 
         collection._base_class = NewServiceBase
         collection.load_definitions()
-        collection.stop_all(StopOptions('the-network', False, 50))
+        collection.stop_all(DEFAULT_OPTIONS)
         assert container1.stopped
         assert container1.timeout == 50
         assert container1.removed_at is None
@@ -447,7 +449,7 @@ class ServiceCollectionTests(unittest.TestCase):
 
         collection._base_class = NewServiceBase
         collection.load_definitions()
-        collection.stop_all(StopOptions('the-network', True, 50))
+        collection.stop_all(Options('the-network', 50, False, True))
         assert container1.stopped
         assert container1.removed_at is not None
         assert container2.stopped
@@ -481,7 +483,7 @@ class ServiceCollectionTests(unittest.TestCase):
         collection._base_class = NewServiceBase
         collection.load_definitions()
         collection.exclude_for_stop(['service2'])
-        collection.stop_all(StopOptions('the-network', True, 50))
+        collection.stop_all(Options('the-network', 50, False, True))
         assert container1.stopped
         assert container1.removed_at is not None
         # service2 was excluded
@@ -491,6 +493,16 @@ class ServiceCollectionTests(unittest.TestCase):
         assert self.docker._networks_removed == []
 
     def test_reload_service(self):
+        container1 = FakeContainer(name='service1-drillmaster-1234',
+                                   network='the-network',
+                                   status='running')
+        container2 = FakeContainer(name='service2-drillmaster-5678',
+                                   network='the-network',
+                                   status='running')
+        container3 = FakeContainer(name='service3-drillmaster-5678',
+                                   network='the-network',
+                                   status='running')
+        self.docker._existing_containers = [container1, container2, container3]
         collection = ServiceCollection()
         class NewServiceBase(Service):
             name = "not used"
@@ -512,7 +524,12 @@ class ServiceCollectionTests(unittest.TestCase):
 
         collection._base_class = NewServiceBase
         collection.load_definitions()
-        collection.reload_service('service2', Options(False, 'the-network', 50))
+        collection.reload_service('service2', DEFAULT_OPTIONS)
+        # The services should first be stopped
+        assert not container1.stopped
+        assert container2.stopped
+        assert container3.stopped
+        # And then restarted
 
 
 class ServiceCommandTests(unittest.TestCase):
@@ -556,8 +573,9 @@ class ServiceCommandTests(unittest.TestCase):
         assert self.collection.excluded == ['test']
 
     def test_reload_service(self):
-        services.reload_service('the-service', "drillmaster", False, 50)
+        services.reload_service('the-service', "drillmaster", False, 50, False)
         assert self.collection.reloaded == 'the-service'
         assert self.collection.options.network_name == 'drillmaster'
         assert self.collection.options.timeout == 50
         assert not self.collection.options.remove
+        assert not self.collection.options.run_new_containers

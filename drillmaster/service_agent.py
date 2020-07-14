@@ -10,14 +10,10 @@ from drillmaster.context import Context
 logger = logging.getLogger(__name__)
 
 class Options(NamedTuple):
+    network_name: str
+    timeout: int
     run_new_containers: bool
-    network_name: str
-    timeout: int
-
-class StopOptions(NamedTuple):
-    network_name: str
     remove: bool
-    timeout: int
 
 class AgentStatus:
     NULL = 'null'
@@ -51,6 +47,9 @@ class ServiceAgent(threading.Thread):
         self.open_dependants = service.dependants[:]
         self.status = AgentStatus.NULL
         self._action = None
+
+    def __repr__(self):
+        return "<ServiceAgent service={:s}>".format(self.service.name)
 
     @property
     def action(self):

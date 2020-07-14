@@ -8,12 +8,14 @@ from drillmaster.services import connect_services
 
 from common import FakeService
 
+DEFAULT_OPTIONS = Options('the-network', 50, False, False)
+
 class RunningContextTests(unittest.TestCase):
 
     def test_service_started(self):
         services = connect_services([FakeService(name='service1', dependencies=[]),
                                      FakeService(name='service2', dependencies=['service1'])])
-        context = RunningContext(services, Options(False, 'the-network', 50))
+        context = RunningContext(services, DEFAULT_OPTIONS)
         assert len(context.agent_set) == 2
         context.service_started(services['service1'])
         assert len(context.processed_services) == 1
@@ -26,7 +28,7 @@ class RunningContextTests(unittest.TestCase):
     def test_ready_to_start_and_stop(self):
         services = connect_services([FakeService(name='service1', dependencies=[]),
                                      FakeService(name='service2', dependencies=['service1'])])
-        context = RunningContext(services, Options(False, 'the-network', 50))
+        context = RunningContext(services, DEFAULT_OPTIONS)
         assert len(context.ready_to_start) == 1
         assert context.ready_to_start[0].service == services['service1']
         assert len(context.ready_to_stop) == 1
@@ -35,7 +37,7 @@ class RunningContextTests(unittest.TestCase):
 
     def test_service_failed(self):
         service = FakeService(name='service1', dependencies=[])
-        context = RunningContext({'service': service}, Options(False, 'the-network', 50))
+        context = RunningContext({'service': service}, DEFAULT_OPTIONS)
         context.service_failed(service)
         assert len(context.failed_services) == 1
         assert len(context.agent_set) == 0
@@ -44,7 +46,7 @@ class RunningContextTests(unittest.TestCase):
     def test_service_stopped(self):
         services = connect_services([FakeService(name='service1', dependencies=[]),
                                      FakeService(name='service2', dependencies=['service1'])])
-        context = RunningContext(services, Options(False, 'the-network', 50))
+        context = RunningContext(services, DEFAULT_OPTIONS)
         context.service_stopped(services['service2'])
         assert len(context.agent_set) == 1
         assert len(context.processed_services) == 1
@@ -56,7 +58,7 @@ class RunningContextTests(unittest.TestCase):
     def test_done_on_started(self):
         services = connect_services([FakeService(name='service1', dependencies=[]),
                                      FakeService(name='service2', dependencies=[])])
-        context = RunningContext(services, Options(False, 'the-network', 50))
+        context = RunningContext(services, DEFAULT_OPTIONS)
         assert not context.done
         context.service_started(services['service1'])
         assert not context.done
@@ -67,7 +69,7 @@ class RunningContextTests(unittest.TestCase):
     def test_done_on_fail(self):
         services = connect_services([FakeService(name='service1', dependencies=[]),
                                      FakeService(name='service2', dependencies=[])])
-        context = RunningContext(services, Options(False, 'the-network', 50))
+        context = RunningContext(services, DEFAULT_OPTIONS)
         assert not context.done
         context.service_started(services['service1'])
         assert not context.done
@@ -79,7 +81,7 @@ class RunningContextTests(unittest.TestCase):
         also registered as failed"""
         services = connect_services([FakeService(name='service1', dependencies=[]),
                                      FakeService(name='service2', dependencies=['service1'])])
-        context = RunningContext(services, Options(False, 'the-network', 50))
+        context = RunningContext(services, DEFAULT_OPTIONS)
         context.service_failed(services['service1'])
         assert len(context.failed_services) == 2
 
@@ -88,7 +90,7 @@ class RunningContextTests(unittest.TestCase):
     def test_service_started_lock_call(self, mock_threading):
         services = connect_services([FakeService(name='service1', dependencies=[]),
                                      FakeService(name='service2', dependencies=['service1'])])
-        context = RunningContext(services, Options(False, 'the-network', 50))
+        context = RunningContext(services, DEFAULT_OPTIONS)
         context.service_started(services['service1'])
         mock_lock = mock_threading.Lock.return_value
         assert mock_lock.__enter__.call_count == 1
@@ -98,7 +100,7 @@ class RunningContextTests(unittest.TestCase):
     def test_service_failed_lock_call(self, mock_threading):
         services = connect_services([FakeService(name='service1', dependencies=[]),
                                      FakeService(name='service2', dependencies=['service1'])])
-        context = RunningContext(services, Options(False, 'the-network', 50))
+        context = RunningContext(services, DEFAULT_OPTIONS)
         context.service_failed(services['service1'])
         mock_lock = mock_threading.Lock.return_value
         # This has to be 2 because service1 has a dependency, and it has to be

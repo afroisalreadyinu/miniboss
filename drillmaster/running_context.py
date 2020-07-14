@@ -2,7 +2,6 @@ import threading
 
 from drillmaster.service_agent import (ServiceAgent,
                                        Options,
-                                       StopOptions,
                                        AgentStatus)
 
 class RunningContext:
