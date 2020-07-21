@@ -2,7 +2,7 @@ import unittest
 
 import pytest
 
-from drillmaster.context import _Context, ContextError
+from miniboss.context import _Context, ContextError
 
 class ContextTests(unittest.TestCase):
 

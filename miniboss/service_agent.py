@@ -4,8 +4,8 @@ import time
 import logging
 from typing import NamedTuple
 
-from drillmaster.docker_client import DockerClient
-from drillmaster.context import Context
+from miniboss.docker_client import DockerClient
+from miniboss.context import Context
 
 logger = logging.getLogger(__name__)
 
@@ -71,7 +71,7 @@ class ServiceAgent(threading.Thread):
 
     @property
     def container_name_prefix(self):
-        return "{:s}-drillmaster".format(self.service.name)
+        return "{:s}-miniboss".format(self.service.name)
 
     def process_service_started(self, service):
         if service in self.open_dependencies:

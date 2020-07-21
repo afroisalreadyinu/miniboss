@@ -4,13 +4,13 @@ from types import SimpleNamespace as Bunch
 
 import pytest
 
-from drillmaster import service_agent, context
-from drillmaster.services import connect_services
-from drillmaster.service_agent import (ServiceAgent,
-                                       Options,
-                                       AgentStatus,
-                                       Actions,
-                                       ServiceAgentException)
+from miniboss import service_agent, context
+from miniboss.services import connect_services
+from miniboss.service_agent import (ServiceAgent,
+                                    Options,
+                                    AgentStatus,
+                                    Actions,
+                                    ServiceAgentException)
 
 from common import FakeDocker, FakeService, FakeRunningContext, FakeContainer
 
@@ -65,7 +65,7 @@ class ServiceAgentTests(unittest.TestCase):
         agent.run_image()
         assert len(self.docker._services_started) == 1
         prefix, service, network_name = self.docker._services_started[0]
-        assert prefix == "service1-drillmaster"
+        assert prefix == "service1-miniboss"
         assert service.name == 'service1'
         assert service.image == 'not/used'
         assert network_name == 'the-network'
@@ -113,12 +113,12 @@ class ServiceAgentTests(unittest.TestCase):
         service = FakeService()
         agent = ServiceAgent(service, DEFAULT_OPTIONS, None)
         self.docker._existing_containers = [Bunch(status='running',
-                                                  name="{}-drillmaster-123".format(service.name),
+                                                  name="{}-miniboss-123".format(service.name),
                                                   network='the-network')]
         agent.run_image()
         assert len(self.docker._services_started) == 0
         assert len(self.docker._existing_queried) == 1
-        assert self.docker._existing_queried[0] == ("service1-drillmaster", "the-network")
+        assert self.docker._existing_queried[0] == ("service1-miniboss", "the-network")
 
 
     def test_start_old_container_if_exists(self):
@@ -127,7 +127,7 @@ class ServiceAgentTests(unittest.TestCase):
         self.docker._existing_containers = [Bunch(status='exited',
                                                   network='the-network',
                                                   id='longass-container-id',
-                                                  name="{}-drillmaster-123".format(service.name))]
+                                                  name="{}-miniboss-123".format(service.name))]
         agent.run_image()
         assert len(self.docker._services_started) == 0
         assert self.docker._containers_ran == ['longass-container-id']
@@ -143,7 +143,7 @@ class ServiceAgentTests(unittest.TestCase):
         self.docker._existing_containers = [Bunch(status='exited',
                                                   start=start,
                                                   network='the-network',
-                                                  name="{}-drillmaster-123".format(service.name))]
+                                                  name="{}-miniboss-123".format(service.name))]
         agent.run_image()
         assert len(self.docker._services_started) == 1
         assert not restarted
@@ -160,7 +160,7 @@ class ServiceAgentTests(unittest.TestCase):
         self.docker._existing_containers = [Bunch(status='exited',
                                                   start=start,
                                                   network='the-network',
-                                                  name="{}-drillmaster-123".format(service.name))]
+                                                  name="{}-miniboss-123".format(service.name))]
         agent.run_image()
         assert len(self.docker._services_started) == 1
         assert not restarted
@@ -184,7 +184,7 @@ class ServiceAgentTests(unittest.TestCase):
         agent = ServiceAgent(service, Options('the-network', 1, True, False), fake_context)
         self.docker._existing_containers = [Bunch(status='running',
                                                   network='the-network',
-                                                  name="{}-drillmaster-123".format(service.name))]
+                                                  name="{}-miniboss-123".format(service.name))]
         agent.start_service()
         agent.join()
         assert service.ping_count == 0
@@ -198,7 +198,7 @@ class ServiceAgentTests(unittest.TestCase):
         self.docker._existing_containers = [Bunch(status='exited',
                                                   network='the-network',
                                                   id='longass-container-id',
-                                                  name="{}-drillmaster-123".format(service.name))]
+                                                  name="{}-miniboss-123".format(service.name))]
         agent.start_service()
         agent.join()
         assert service.ping_count == 1
@@ -206,7 +206,7 @@ class ServiceAgentTests(unittest.TestCase):
         assert self.docker._containers_ran == ['longass-container-id']
 
 
-    @patch('drillmaster.service_agent.time')
+    @patch('miniboss.service_agent.time')
     def test_repeat_ping_and_timeout(self, mock_time):
         mock_time.monotonic.side_effect = [0, 0.2, 0.6, 0.8, 1]
         fake_context = FakeRunningContext()
@@ -259,7 +259,7 @@ class ServiceAgentTests(unittest.TestCase):
     def test_stop_existing_container(self):
         fake_context = FakeRunningContext()
         fake_service = FakeService(exception_at_init=ValueError)
-        container = FakeContainer(name='{}-drillmaster-5678'.format(fake_service.name),
+        container = FakeContainer(name='{}-miniboss-5678'.format(fake_service.name),
                                   stopped=False,
                                   removed=False,
                                   network='the-network',

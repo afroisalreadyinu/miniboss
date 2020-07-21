@@ -1,7 +1,7 @@
 #! /usr/bin/env python3
-import drillmaster
+import miniboss
 
-class Database(drillmaster.Service):
+class Database(miniboss.Service):
     name = "appdb"
     image = "postgres:10.6"
     env = {"POSTGRES_PASSWORD": "dbpwd",
@@ -9,7 +9,7 @@ class Database(drillmaster.Service):
            "POSTGRES_DB": "appdb" }
     ports = {5432: 5433}
 
-class Application(drillmaster.Service):
+class Application(miniboss.Service):
     name = "python-todo"
     image = "afroisalreadyin/python-todo:0.0.1"
     env = {"DB_URI": "postgresql://dbuser:dbpwd@appdb:5432/appdb"}
@@ -18,4 +18,4 @@ class Application(drillmaster.Service):
     stop_signal = "SIGINT"
 
 if __name__ == "__main__":
-    drillmaster.cli()
+    miniboss.cli()

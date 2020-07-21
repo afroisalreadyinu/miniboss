@@ -4,14 +4,14 @@ from types import SimpleNamespace as Bunch
 
 import pytest
 
-from drillmaster.services import (connect_services,
-                                  Service,
-                                  ServiceLoadError,
-                                  ServiceCollection,
-                                  ServiceDefinitionError)
+from miniboss.services import (connect_services,
+                               Service,
+                               ServiceLoadError,
+                               ServiceCollection,
+                               ServiceDefinitionError)
 
-from drillmaster.service_agent import Options, ServiceAgent
-from drillmaster import services, service_agent
+from miniboss.service_agent import Options, ServiceAgent
+from miniboss import services, service_agent
 
 from common import FakeDocker, FakeContainer
 
@@ -313,7 +313,7 @@ class ServiceCollectionTests(unittest.TestCase):
         # The one without dependencies should have been started first
         name_prefix, service, network_name = self.docker._services_started[0]
         assert service.image == 'howareyou/image'
-        assert name_prefix == "howareyou-drillmaster"
+        assert name_prefix == "howareyou-miniboss"
 
 
     def test_stop_on_fail(self):
@@ -356,11 +356,11 @@ class ServiceCollectionTests(unittest.TestCase):
 
 
     def test_stop_all_remove_false(self):
-        container1 = FakeContainer(name='service1-drillmaster-1234',
+        container1 = FakeContainer(name='service1-miniboss-1234',
                                    stopped=False,
                                    network='the-network',
                                    status='running')
-        container2 = FakeContainer(name='service2-drillmaster-5678',
+        container2 = FakeContainer(name='service2-miniboss-5678',
                                    stopped=False,
                                    removed=False,
                                    network='the-network',
@@ -387,10 +387,10 @@ class ServiceCollectionTests(unittest.TestCase):
         assert not container2.stopped
 
     def test_stop_without_remove(self):
-        container1 = FakeContainer(name='service1-drillmaster-1234',
+        container1 = FakeContainer(name='service1-miniboss-1234',
                                    network='the-network',
                                    status='running')
-        container2 = FakeContainer(name='service2-drillmaster-5678',
+        container2 = FakeContainer(name='service2-miniboss-5678',
                                    network='the-network',
                                    status='exited')
         self.docker._existing_containers = [container1, container2]
@@ -418,13 +418,13 @@ class ServiceCollectionTests(unittest.TestCase):
 
 
     def test_stop_with_remove_and_order(self):
-        container1 = FakeContainer(name='service1-drillmaster-1234',
+        container1 = FakeContainer(name='service1-miniboss-1234',
                                    network='the-network',
                                    status='running')
-        container2 = FakeContainer(name='service2-drillmaster-5678',
+        container2 = FakeContainer(name='service2-miniboss-5678',
                                    network='the-network',
                                    status='running')
-        container3 = FakeContainer(name='service3-drillmaster-5678',
+        container3 = FakeContainer(name='service3-miniboss-5678',
                                    network='the-network',
                                    status='running')
         self.docker._existing_containers = [container1, container2, container3]
@@ -460,10 +460,10 @@ class ServiceCollectionTests(unittest.TestCase):
         assert self.docker._networks_removed == ['the-network']
 
     def test_stop_with_remove_and_exclude(self):
-        container1 = FakeContainer(name='service1-drillmaster-1234',
+        container1 = FakeContainer(name='service1-miniboss-1234',
                                    network='the-network',
                                    status='running')
-        container2 = FakeContainer(name='service2-drillmaster-5678',
+        container2 = FakeContainer(name='service2-miniboss-5678',
                                    network='the-network',
                                    status='running')
         self.docker._existing_containers = [container1, container2]
@@ -493,13 +493,13 @@ class ServiceCollectionTests(unittest.TestCase):
         assert self.docker._networks_removed == []
 
     def test_update_for_base_service(self):
-        container1 = FakeContainer(name='service1-drillmaster-1234',
+        container1 = FakeContainer(name='service1-miniboss-1234',
                                    network='the-network',
                                    status='running')
-        container2 = FakeContainer(name='service2-drillmaster-5678',
+        container2 = FakeContainer(name='service2-miniboss-5678',
                                    network='the-network',
                                    status='running')
-        container3 = FakeContainer(name='service3-drillmaster-5678',
+        container3 = FakeContainer(name='service3-miniboss-5678',
                                    network='the-network',
                                    status='running')
         self.docker._existing_containers = [container1, container2, container3]
@@ -545,8 +545,9 @@ class ServiceCommandTests(unittest.TestCase):
                 self.excluded = exclude
             def exclude_for_stop(self, exclude):
                 self.excluded = exclude
-            def start_all(self, options):
+            def start_all(self, options, build=None):
                 self.options = options
+                self.built = build
                 return ["one", "two"]
             def stop_all(self, options):
                 self.options = options
@@ -554,29 +555,36 @@ class ServiceCommandTests(unittest.TestCase):
             def reload_service(self, service_name, options):
                 self.options = options
                 self.reloaded = service_name
+            def check_can_be_built(self, service_name):
+                self.checked_can_be_built = service_name
+            def update_for_base_service(self, service_name):
+                self.updated_for_base_service = service_name
+
         self.collection = MockServiceCollection()
         services.ServiceCollection = lambda: self.collection
 
     def test_start_service_create_network(self):
-        services.start_services(False, [], "drillmaster", 50)
-        assert self.docker._networks_created == ["drillmaster"]
+        services.start_services(False, [], "miniboss", 50)
+        assert self.docker._networks_created == ["miniboss"]
 
     def test_start_service_exclude(self):
-        services.start_services(True, ['blah'], "drillmaster", 50)
+        services.start_services(True, ['blah'], "miniboss", 50)
         assert self.collection.excluded == ['blah']
         assert self.collection.options.run_new_containers
 
     def test_stop_services(self):
-        services.stop_services(['test'], "drillmaster", False, 50)
-        assert self.collection.options.network_name == 'drillmaster'
+        services.stop_services(['test'], "miniboss", False, 50)
+        assert self.collection.options.network_name == 'miniboss'
         assert self.collection.options.timeout == 50
         assert not self.collection.options.remove
         assert self.collection.excluded == ['test']
 
     def test_reload_service(self):
-        services.reload_service('the-service', "drillmaster", False, 50, False)
-        assert self.collection.reloaded == 'the-service'
-        assert self.collection.options.network_name == 'drillmaster'
+        services.reload_service('the-service', "miniboss", False, 50, False)
+        assert self.collection.checked_can_be_built == 'the-service'
+        assert self.collection.updated_for_base_service == 'the-service'
+        assert self.collection.options.network_name == 'miniboss'
         assert self.collection.options.timeout == 50
+        assert self.collection.built == 'the-service'
         assert not self.collection.options.remove
         assert not self.collection.options.run_new_containers

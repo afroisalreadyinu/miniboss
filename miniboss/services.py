@@ -10,9 +10,9 @@ import requests
 import furl
 import requests.exceptions
 
-from drillmaster.docker_client import DockerClient
-from drillmaster.service_agent import Options
-from drillmaster.running_context import RunningContext
+from miniboss.docker_client import DockerClient
+from miniboss.service_agent import Options
+from miniboss.running_context import RunningContext
 
 logging.basicConfig(
     level=logging.INFO,
@@ -155,10 +155,21 @@ class ServiceCollection:
     def __len__(self):
         return len(self.all_by_name)
 
-    def start_all(self, options: Options, reload=None):
+    def check_can_be_built(self, service_name):
+        if not service_name in stop_collection.all_by_name[service]:
+            msg = "No such service: {:s}".format(service)
+            raise ServiceDefinitionError(msg)
+        service = stop_collection.all_by_name[service]
+        if not service.build_from_directory:
+            msg = "Service {:s} cannot be built: No build directory specified".format(service)
+            raise ServiceDefinitionError(msg)
+
+    def start_all(self, options: Options, build=None):
         self.running_context = RunningContext(self.all_by_name, options)
         while not (self.running_context.done or self.running_context.failed_services):
             for agent in self.running_context.ready_to_start:
+                if agent.service.name == build:
+                    agent.build_image()
                 agent.start_service()
             time.sleep(0.01)
         failed = []
@@ -217,9 +228,10 @@ def reload_service(service, network_name, remove, timeout, run_new_containers):
     options = Options(network_name, timeout, remove, run_new_containers)
     stop_collection = ServiceCollection()
     stop_collection.load_definitions()
+    stop_collection.check_can_be_built(service)
     stop_collection.update_for_base_service(service)
     stop_collection.stop_all(options)
 
     start_collection = ServiceCollection()
     start_collection.load_definitions()
-    start_collection.start_all(reload=service)
+    start_collection.start_all(options, build=service)

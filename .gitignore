@@ -1,3 +1,3 @@
 *.egg-info
-drillmaster/__pycache__
+miniboss/__pycache__
 tests/__pycache__

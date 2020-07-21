@@ -1,8 +1,7 @@
 import threading
 
-from drillmaster.service_agent import (ServiceAgent,
-                                       Options,
-                                       AgentStatus)
+from miniboss.service_agent import (ServiceAgent,
+                                    Options)
 
 class RunningContext:
 

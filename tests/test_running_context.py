@@ -2,9 +2,9 @@ import unittest
 from unittest.mock import patch
 from types import SimpleNamespace as Bunch
 
-from drillmaster.running_context import RunningContext
-from drillmaster.service_agent import Options
-from drillmaster.services import connect_services
+from miniboss.running_context import RunningContext
+from miniboss.service_agent import Options
+from miniboss.services import connect_services
 
 from common import FakeService
 
@@ -86,7 +86,7 @@ class RunningContextTests(unittest.TestCase):
         assert len(context.failed_services) == 2
 
 
-    @patch('drillmaster.running_context.threading')
+    @patch('miniboss.running_context.threading')
     def test_service_started_lock_call(self, mock_threading):
         services = connect_services([FakeService(name='service1', dependencies=[]),
                                      FakeService(name='service2', dependencies=['service1'])])
@@ -96,7 +96,7 @@ class RunningContextTests(unittest.TestCase):
         assert mock_lock.__enter__.call_count == 1
 
 
-    @patch('drillmaster.running_context.threading')
+    @patch('miniboss.running_context.threading')
     def test_service_failed_lock_call(self, mock_threading):
         services = connect_services([FakeService(name='service1', dependencies=[]),
                                      FakeService(name='service2', dependencies=['service1'])])

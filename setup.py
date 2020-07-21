@@ -2,12 +2,12 @@ import os
 from setuptools import setup
 
 setup(
-    name = "drillmaster",
+    name = "miniboss",
     version = "0.0.1",
     author = "Ulas Turkmen",
-    description = ("API of our jobmanager"),
+    description = "Containerized app testing framework",
     install_requires = [],
     tests_require = [],
-    packages=['drillmaster'],
-    url = "https://github.com/afroisalredyinu/drillmaster"
+    packages=['miniboss'],
+    url = "https://github.com/afroisalredyinu/miniboss"
 )

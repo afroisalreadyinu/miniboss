@@ -1,8 +1,8 @@
-[![afroisalreadyinu](https://circleci.com/gh/afroisalreadyinu/drillmaster.svg?style=svg)](https://app.circleci.com/pipelines/github/afroisalreadyinu/drillmaster)
+[![afroisalreadyinu](https://circleci.com/gh/afroisalreadyinu/miniboss.svg?style=svg)](https://app.circleci.com/pipelines/github/afroisalreadyinu/miniboss)
 
-# drillmaster
+# miniboss
 
-drillmaster is a Python application that can be used to locally start multiple
+miniboss is a Python application that can be used to locally start multiple
 dependent docker services, individually rebuild and restart them, and run
 initialization jobs. The definitions for services can be written in Python,
 allowing you to use
@@ -30,9 +30,9 @@ Here is a very simple service specification:
 
 ```python
 #! /usr/bin/env python3
-import drillmaster
+import miniboss
 
-class Database(drillmaster.Service):
+class Database(miniboss.Service):
     name = "appdb"
     image = "postgres:10.6"
     env = {"POSTGRES_PASSWORD": "dbpwd",
@@ -40,7 +40,7 @@ class Database(drillmaster.Service):
            "POSTGRES_DB": "appdb" }
     ports = {5432: 5433}
 
-class Application(drillmaster.Service):
+class Application(miniboss.Service):
     name = "python-todo"
     image = "afroisalreadyin/python-todo:0.0.1"
     env = {"DB_URI": "postgresql://dbuser:dbpwd@appdb:5432/appdb"}
@@ -49,10 +49,10 @@ class Application(drillmaster.Service):
     stop_signal = "SIGINT"
 
 if __name__ == "__main__":
-    drillmaster.cli()
+    miniboss.cli()
 ```
 
-A **service** is defined by subclassing `drillmaster.Service` and overriding, in
+A **service** is defined by subclassing `miniboss.Service` and overriding, in
 the minimal case, the fields `image` and `name`. The `env` field specifies the
 enviornment variables; as in the case of the `appdb` service, you can use
 ordinary variables in this and any other value. The other available fields are
@@ -63,12 +63,12 @@ the `sample-apps` directory) depends on `appdb` (a Postgresql container),
 specified through the `dependencies` field. As in `docker-compose`, this means
 that `python-todo` will get started after `appdb` reaches running status.
 
-The `drillmaster.cli` function is the main entry point; you need to execute it
+The `miniboss.cli` function is the main entry point; you need to execute it
 in the main routine of your scirpt. Let's run this script without arguments,
 which leads to the following output:
 
 ```
-Usage: drillmaster-main.py [OPTIONS] COMMAND [ARGS]...
+Usage: miniboss-main.py [OPTIONS] COMMAND [ARGS]...
 
 Options:
   --help  Show this message and exit.
@@ -78,21 +78,21 @@ Commands:
   stop
 ```
 
-We can start our small ensemble of services by running `./drillmaster-main.py
+We can start our small ensemble of services by running `./miniboss-main.py
 start`. After spitting out some logging text, you will see that starting the
 containers failed, with the `python-todo` service throwing an error that it
 cannot reach the database. The reason for this error is that the Postgresql
 process has started, but is still initializing, and does not accept connections
 yet. The standard way of dealing with this issue is to include backoff code in
 your application that checks on the database port regularly, until the
-connection is accepted. `drillmaster` offers an alternative with [lifecycle
+connection is accepted. `miniboss` offers an alternative with [lifecycle
 events](#lifecycle-events). For the time being, you can simply rerun
-`./drillmaster-main.py start`, which will restart only the `python-todo`
+`./miniboss-main.py start`, which will restart only the `python-todo`
 service, as the other one is already running. You should be able to navigate to
 `http://localhost:8080` and view the todo app page.
 
 You can also exclude services from the list of services to be started with the
-`--exclude` argument; `./drillmaster-main.py start --exclude python-todo` will
+`--exclude` argument; `./miniboss-main.py start --exclude python-todo` will
 start only `appdb`. If you exclude a service that is depended on by another, you
 will get an error. If a service fails to start (i.e. container cannot be started
 or the lifecycle events fail), it and all the other services that depend on it
@@ -101,16 +101,16 @@ are registered as failed.
 ### Stopping services
 
 Once you are done working, you can stop the running services with
-`drillmaster-main.py stop`. This will stop the services in the reverse order of
+`miniboss-main.py stop`. This will stop the services in the reverse order of
 dependency, i.e. first `python-todo` and then `appdb`. Exclusion is possible
 also when stopping services with the same `--exclude` argument. Running
-`./drillmaster-main.py stop --exclude appdb` will stop only the `python-todo`
+`./miniboss-main.py stop --exclude appdb` will stop only the `python-todo`
 service. If you exclude a service whose dependency will be stopped, you will get
 an error.
 
 ## Lifecycle events
 
-`drillmaster.Service` has two methods that can be overriden in order to move it
+`miniboss.Service` has two methods that can be overriden in order to move it
 to the correct states and execute actions on the container:
 
 - **`Service.ping()`**: Executed repeatedly right after the service starts with
@@ -132,7 +132,7 @@ TBW
 
 ### The global context
 
-The object `drillmaster.Context`, derived from the standard dict, can be used to
+The object `miniboss.Context`, derived from the standard dict, can be used to
 store values that are accessible to other service definitions, especially in the
 `env` field.
 

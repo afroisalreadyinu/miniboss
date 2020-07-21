@@ -5,8 +5,6 @@ import time
 import docker
 import docker.errors
 
-from drillmaster.context import Context
-
 logger = logging.getLogger(__name__)
 
 DIGITS = "0123456789"
