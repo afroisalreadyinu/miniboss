@@ -15,7 +15,7 @@ from miniboss import services, service_agent
 
 from common import FakeDocker, FakeContainer
 
-DEFAULT_OPTIONS = Options('the-network', 50, False, False)
+DEFAULT_OPTIONS = Options('the-network', 50, False, False, "/etc")
 
 class ServiceDefinitionTests(unittest.TestCase):
 
@@ -316,6 +316,29 @@ class ServiceCollectionTests(unittest.TestCase):
         assert name_prefix == "howareyou-miniboss"
 
 
+    def test_start_all_with_build(self):
+        collection = ServiceCollection()
+        class NewServiceBase(Service):
+            name = "not used"
+            image = "not used"
+        collection._base_class = NewServiceBase
+        class ServiceOne(NewServiceBase):
+            name = "hello"
+            image = "hello/image"
+            dependencies = ["howareyou"]
+
+        class ServiceTwo(NewServiceBase):
+            name = "goodbye"
+            image = "goodbye/image"
+            dependencies = ["hello"]
+
+        class ServiceThree(NewServiceBase):
+            name = "howareyou"
+            image = "howareyou/image"
+        collection.load_definitions()
+        retval = collection.start_all(DEFAULT_OPTIONS, build='goodbye')
+
+
     def test_stop_on_fail(self):
         collection = ServiceCollection()
         class NewServiceBase(Service):
@@ -449,7 +472,7 @@ class ServiceCollectionTests(unittest.TestCase):
 
         collection._base_class = NewServiceBase
         collection.load_definitions()
-        collection.stop_all(Options('the-network', 50, False, True))
+        collection.stop_all(Options('the-network', 50, False, True, "/etc"))
         assert container1.stopped
         assert container1.removed_at is not None
         assert container2.stopped
@@ -458,6 +481,7 @@ class ServiceCollectionTests(unittest.TestCase):
         assert container3.removed_at is not None
         assert container1.removed_at > container2.removed_at > container3.removed_at
         assert self.docker._networks_removed == ['the-network']
+
 
     def test_stop_with_remove_and_exclude(self):
         container1 = FakeContainer(name='service1-miniboss-1234',
@@ -483,7 +507,7 @@ class ServiceCollectionTests(unittest.TestCase):
         collection._base_class = NewServiceBase
         collection.load_definitions()
         collection.exclude_for_stop(['service2'])
-        collection.stop_all(Options('the-network', 50, False, True))
+        collection.stop_all(Options('the-network', 50, False, True, '/etc'))
         assert container1.stopped
         assert container1.removed_at is not None
         # service2 was excluded
@@ -491,6 +515,7 @@ class ServiceCollectionTests(unittest.TestCase):
         assert container2.removed_at is None
         # If excluded is not empty, network should not be removed
         assert self.docker._networks_removed == []
+
 
     def test_update_for_base_service(self):
         container1 = FakeContainer(name='service1-miniboss-1234',
@@ -564,27 +589,29 @@ class ServiceCommandTests(unittest.TestCase):
         services.ServiceCollection = lambda: self.collection
 
     def test_start_service_create_network(self):
-        services.start_services(False, [], "miniboss", 50)
+        services.start_services('/etc', False, [], "miniboss", 50)
         assert self.docker._networks_created == ["miniboss"]
 
     def test_start_service_exclude(self):
-        services.start_services(True, ['blah'], "miniboss", 50)
+        services.start_services("/etc", True, ['blah'], "miniboss", 50)
         assert self.collection.excluded == ['blah']
         assert self.collection.options.run_new_containers
 
     def test_stop_services(self):
-        services.stop_services(['test'], "miniboss", False, 50)
+        services.stop_services('/etc', ['test'], "miniboss", False, 50)
         assert self.collection.options.network_name == 'miniboss'
         assert self.collection.options.timeout == 50
+        assert self.collection.options.run_dir == '/etc'
         assert not self.collection.options.remove
         assert self.collection.excluded == ['test']
 
     def test_reload_service(self):
-        services.reload_service('the-service', "miniboss", False, 50, False)
+        services.reload_service('/etc', 'the-service', "miniboss", False, 50, False)
         assert self.collection.checked_can_be_built == 'the-service'
         assert self.collection.updated_for_base_service == 'the-service'
         assert self.collection.options.network_name == 'miniboss'
         assert self.collection.options.timeout == 50
+        assert self.collection.options.run_dir == '/etc'
         assert self.collection.built == 'the-service'
         assert not self.collection.options.remove
         assert not self.collection.options.run_new_containers

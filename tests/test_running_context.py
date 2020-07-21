@@ -8,7 +8,7 @@ from miniboss.services import connect_services
 
 from common import FakeService
 
-DEFAULT_OPTIONS = Options('the-network', 50, False, False)
+DEFAULT_OPTIONS = Options('the-network', 50, False, False, '/etc')
 
 class RunningContextTests(unittest.TestCase):
 

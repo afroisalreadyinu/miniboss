@@ -14,7 +14,7 @@ from miniboss.service_agent import (ServiceAgent,
 
 from common import FakeDocker, FakeService, FakeRunningContext, FakeContainer
 
-DEFAULT_OPTIONS = Options('the-network', 1, False, False)
+DEFAULT_OPTIONS = Options('the-network', 1, False, False, '/etc')
 
 class ServiceAgentTests(unittest.TestCase):
 
@@ -135,7 +135,7 @@ class ServiceAgentTests(unittest.TestCase):
 
     def test_start_new_if_run_new_containers(self):
         service = FakeService()
-        agent = ServiceAgent(service, Options('the-network', 1, True, False), None)
+        agent = ServiceAgent(service, Options('the-network', 1, True, False, '/etc'), None)
         restarted = False
         def start():
             nonlocal restarted
@@ -152,7 +152,7 @@ class ServiceAgentTests(unittest.TestCase):
     def test_start_new_if_always_start_new(self):
         service = FakeService()
         service.always_start_new = True
-        agent = ServiceAgent(service, Options('the-network', 1, True, False), None)
+        agent = ServiceAgent(service, Options('the-network', 1, True, False, '/etc'), None)
         restarted = False
         def start():
             nonlocal restarted
@@ -181,7 +181,7 @@ class ServiceAgentTests(unittest.TestCase):
     def test_no_ping_or_init_if_running(self):
         service = FakeService()
         fake_context = FakeRunningContext()
-        agent = ServiceAgent(service, Options('the-network', 1, True, False), fake_context)
+        agent = ServiceAgent(service, Options('the-network', 1, True, False, '/etc'), fake_context)
         self.docker._existing_containers = [Bunch(status='running',
                                                   network='the-network',
                                                   name="{}-miniboss-123".format(service.name))]
@@ -225,7 +225,7 @@ class ServiceAgentTests(unittest.TestCase):
         fake_context = FakeRunningContext()
         fake_service = FakeService(fail_ping=True)
         # Using options with low timeout so that test doesn't hang
-        options = Options('the-network', 0.01, True, False)
+        options = Options('the-network', 0.01, True, False, '/etc')
         agent = ServiceAgent(fake_service, options, fake_context)
         agent.start_service()
         agent.join()
@@ -272,3 +272,9 @@ class ServiceAgentTests(unittest.TestCase):
         assert container.stopped
         assert len(fake_context.stopped_services) == 1
         assert fake_context.stopped_services[0] is fake_service
+
+
+    def test_build_image(self):
+        fake_service = FakeService()
+        agent = ServiceAgent(fake_service, DEFAULT_OPTIONS, FakeRunningContext())
+        agent.build_service()

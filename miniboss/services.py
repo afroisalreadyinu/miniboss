@@ -205,27 +205,28 @@ class ServiceCollection:
         self.all_by_name = {service.name: service for service in required}
 
 
-def start_services(run_new_containers, exclude, network_name, timeout):
+def start_services(maindir, run_new_containers, exclude, network_name, timeout):
     docker = DockerClient.get_client()
     collection = ServiceCollection()
     collection.load_definitions()
     collection.exclude_for_start(exclude)
     docker.create_network(network_name)
-    service_names = collection.start_all(Options(network_name, timeout, run_new_containers, False))
+    options = Options(network_name, timeout, run_new_containers, False, maindir)
+    service_names = collection.start_all(options)
     logger.info("Started services: %s", ", ".join(service_names))
 
 
-def stop_services(exclude, network_name, remove, timeout):
+def stop_services(maindir, exclude, network_name, remove, timeout):
     logger.info("Stopping services (excluded: %s)", "none" if not exclude else ",".join(exclude))
-    options = Options(network_name, timeout, False, remove)
+    options = Options(network_name, timeout, False, remove, maindir)
     collection = ServiceCollection()
     collection.load_definitions()
     collection.exclude_for_stop(exclude)
     collection.stop_all(options)
 
 
-def reload_service(service, network_name, remove, timeout, run_new_containers):
-    options = Options(network_name, timeout, remove, run_new_containers)
+def reload_service(maindir, service, network_name, remove, timeout, run_new_containers):
+    options = Options(network_name, timeout, remove, run_new_containers, maindir)
     stop_collection = ServiceCollection()
     stop_collection.load_definitions()
     stop_collection.check_can_be_built(service)
