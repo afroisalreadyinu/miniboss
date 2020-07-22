@@ -23,6 +23,8 @@ class FakeService:
     ports = {}
     env = {}
     always_start_new = False
+    build_from_directory = None
+    dockerfile = 'Dockerfile'
 
     def __init__(self, name='service1', dependencies=None, fail_ping=False, exception_at_init=None):
         self.name = name
@@ -80,6 +82,7 @@ class FakeDocker:
         self._services_started = []
         self._existing_queried = []
         self._containers_ran = []
+        self._images_built = []
 
         self._existing_containers = []
 
@@ -101,3 +104,6 @@ class FakeDocker:
 
     def run_container(self, container_id):
         self._containers_ran.append(container_id)
+
+    def build_image(self, build_dir, dockerfile, image_tag):
+        self._images_built.append((build_dir, dockerfile, image_tag))

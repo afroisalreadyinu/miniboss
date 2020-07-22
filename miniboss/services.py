@@ -51,6 +51,16 @@ class ServiceMeta(type):
         if "always_start_new" in attrdict and not isinstance(attrdict["always_start_new"], bool):
             raise ServiceDefinitionError(
                 "Field 'always_start_new' of service class {:s} must be a boolean".format(name))
+        if "build_from_directory" in attrdict:
+            build_dir = attrdict["build_from_directory"]
+            if not isinstance(build_dir, str) or build_dir == '':
+                raise ServiceDefinitionError(
+                    "Field 'build_from_directory' of service class {:s} must be a non-empty string".format(name))
+        if "dockerfile" in attrdict:
+            dockerfile = attrdict["dockerfile"]
+            if not isinstance(dockerfile, str) or dockerfile == '':
+                raise ServiceDefinitionError(
+                    "Field 'dockerfile' of service class {:s} must be a non-empty string".format(name))
         if "stop_signal" in attrdict:
             signal_name = attrdict["stop_signal"]
             if signal_name not in ALLOWED_STOP_SIGNALS:
@@ -66,6 +76,8 @@ class Service(metaclass=ServiceMeta):
     env = {}
     always_start_new = False
     stop_signal = "SIGTERM"
+    build_from_directory = None
+    dockerfile = "Dockerfile"
 
     def ping(self):
         return True
@@ -156,12 +168,12 @@ class ServiceCollection:
         return len(self.all_by_name)
 
     def check_can_be_built(self, service_name):
-        if not service_name in stop_collection.all_by_name[service]:
-            msg = "No such service: {:s}".format(service)
+        if not service_name in self.all_by_name:
+            msg = "No such service: {:s}".format(service_name)
             raise ServiceDefinitionError(msg)
-        service = stop_collection.all_by_name[service]
+        service = self.all_by_name[service_name]
         if not service.build_from_directory:
-            msg = "Service {:s} cannot be built: No build directory specified".format(service)
+            msg = "Service {:s} cannot be built: No build directory specified".format(service.name)
             raise ServiceDefinitionError(msg)
 
     def start_all(self, options: Options, build=None):
@@ -169,7 +181,8 @@ class ServiceCollection:
         while not (self.running_context.done or self.running_context.failed_services):
             for agent in self.running_context.ready_to_start:
                 if agent.service.name == build:
-                    agent.build_image()
+                    tag = agent.build_image()
+                    agent.service.image = tag
                 agent.start_service()
             time.sleep(0.01)
         failed = []

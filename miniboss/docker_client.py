@@ -46,6 +46,14 @@ class DockerClient:
         return self.lib_client.containers.list(all=True, filters={'network': network_name,
                                                                   'name': name})
 
+    def build_image(self, build_dir, dockerfile, image_tag):
+        try:
+            self.lib_client.images.build(tag=image_tag, path=build_dir, dockerfile=dockerfile)
+        except docker.errors.BuildError as build_error:
+            raise DockerException("Error building image: {}".format(build_error.msg))
+        except docker.errors.APIError as api_error:
+            raise DockerException("Error building image: {}".format(api_error.explanation))
+
     def run_container(self, container_id):
         # The container should be already created but not in state running or starting
         self.lib_client.api.start(container_id)

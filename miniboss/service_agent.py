@@ -1,6 +1,7 @@
+import os
 import threading
-import random
 import time
+from datetime import datetime
 import logging
 from typing import NamedTuple
 
@@ -14,6 +15,7 @@ class Options(NamedTuple):
     timeout: int
     run_new_containers: bool
     remove: bool
+    run_dir: str
 
 class AgentStatus:
     NULL = 'null'
@@ -33,6 +35,14 @@ class Actions:
 
 class ServiceAgentException(Exception):
     pass
+
+def container_env(container):
+    env = container.attrs['Config']['Env']
+    retval = {}
+    for env_line in env:
+        key, value = env_line.split('=', 1)
+        retval[key] = value
+    return retval
 
 class ServiceAgent(threading.Thread):
 
@@ -81,8 +91,20 @@ class ServiceAgent(threading.Thread):
         if service in self.open_dependants:
             self.open_dependants.remove(service)
 
+    def build_image(self):
+        client = DockerClient.get_client()
+        time_tag = datetime.now().strftime("%Y-%m-%d-%H%M")
+        image_tag = "{:s}-miniboss-{:s}".format(self.service.name, time_tag)
+        build_dir = os.path.join(self.options.run_dir, self.service.build_from_directory)
+        logger.info("Building image with tag %s for service %s from directory %s",
+                    image_tag, self.service.name, build_dir)
+        client.build_image(build_dir, self.service.dockerfile, image_tag)
+        return image_tag
+
+
     def run_image(self): # returns RunCondition
         client = DockerClient.get_client()
+        self.service.env = Context.extrapolate_values(self.service.env)
         # If there are any running with the name prefix, connected to the same
         # network, skip creating
         existings = client.existing_on_network(self.container_name_prefix, self.options.network_name)
@@ -91,14 +113,25 @@ class ServiceAgent(threading.Thread):
             # containers
             existing = existings[0]
             if existing.status == 'running':
-                logger.info("Running container for %s, not starting a new one", self.service.name)
+                logger.info("Found running container for %s, not starting a new one",
+                            self.service.name)
                 return RunCondition.ALREADY_RUNNING
             elif existing.status == 'exited':
-                if not (self.options.run_new_containers or self.service.always_start_new):
+                existing_env = container_env(existing)
+                differing_keys = [key for key in self.service.env
+                                  if existing_env.get(key) != self.service.env[key]]
+                if differing_keys:
+                    logger.info("Differing env key(s) in existing container for service %s: %s",
+                                self.service.name, ",".join(differing_keys))
+                start_new = (self.options.run_new_containers or
+                             self.service.always_start_new or
+                             self.service.image not in existing.image.tags or
+                             bool(differing_keys))
+                if not start_new:
                     logger.info("There is an existing container for %s, not creating a new one", self.service.name)
                     client.run_container(existing.id)
                     return RunCondition.STARTED
-        self.service.env = Context.extrapolate_values(self.service.env)
+        logger.info("Creating new container for service %s", self.service.name)
         client.run_service_on_network(self.container_name_prefix,
                                       self.service,
                                       self.options.network_name)

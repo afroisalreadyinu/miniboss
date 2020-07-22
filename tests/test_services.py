@@ -77,6 +77,23 @@ class ServiceDefinitionTests(unittest.TestCase):
         assert service == NewService()
         assert a_dict[NewService()] == "one"
 
+    def test_invalid_build_from_directory(self):
+        with pytest.raises(ServiceDefinitionError):
+            class NewService(Service):
+                name = "yes"
+                image = "yes"
+                env = {}
+                build_from_directory = 123
+
+    def test_invalid_dockerfile(self):
+        with pytest.raises(ServiceDefinitionError):
+            class NewService(Service):
+                name = "yes"
+                image = "yes"
+                env = {}
+                dockerfile = 567
+
+
 
 class ConnectServicesTests(unittest.TestCase):
 
@@ -322,21 +339,20 @@ class ServiceCollectionTests(unittest.TestCase):
             name = "not used"
             image = "not used"
         collection._base_class = NewServiceBase
-        class ServiceOne(NewServiceBase):
-            name = "hello"
-            image = "hello/image"
-            dependencies = ["howareyou"]
-
         class ServiceTwo(NewServiceBase):
             name = "goodbye"
             image = "goodbye/image"
-            dependencies = ["hello"]
-
-        class ServiceThree(NewServiceBase):
-            name = "howareyou"
-            image = "howareyou/image"
+            build_from_directory = "goodbye/dir"
+            dockerfile = "Dockerfile.alt"
         collection.load_definitions()
         retval = collection.start_all(DEFAULT_OPTIONS, build='goodbye')
+        assert len(self.docker._images_built) == 1
+        build_dir, dockerfile, image_tag = self.docker._images_built[0]
+        assert build_dir == "/etc/goodbye/dir"
+        assert dockerfile == 'Dockerfile.alt'
+        assert image_tag.startswith("goodbye-miniboss")
+        service = collection.all_by_name['goodbye']
+        assert service.image == image_tag
 
 
     def test_stop_on_fail(self):
@@ -556,6 +572,30 @@ class ServiceCollectionTests(unittest.TestCase):
         assert not container1.stopped
         assert container2.stopped
         assert container3.stopped
+
+
+    def test_check_can_be_built(self):
+        collection = ServiceCollection()
+        class NewServiceBase(Service):
+            name = "not used"
+            image = "not used"
+
+        class ServiceOne(NewServiceBase):
+            name = "service1"
+            image = "howareyou/image"
+
+        class ServiceTwo(NewServiceBase):
+            name = "service2"
+            image = "howareyou/image"
+            build_from_directory = "the/service/dir"
+
+        collection._base_class = NewServiceBase
+        collection.load_definitions()
+        with pytest.raises(ServiceDefinitionError):
+            collection.check_can_be_built('no-such-service')
+        with pytest.raises(ServiceDefinitionError):
+            collection.check_can_be_built('service1')
+        collection.check_can_be_built('service2')
 
 
 class ServiceCommandTests(unittest.TestCase):

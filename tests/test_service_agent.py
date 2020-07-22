@@ -1,6 +1,7 @@
 import unittest
 from unittest.mock import patch
 from types import SimpleNamespace as Bunch
+from datetime import datetime
 
 import pytest
 
@@ -127,10 +128,51 @@ class ServiceAgentTests(unittest.TestCase):
         self.docker._existing_containers = [Bunch(status='exited',
                                                   network='the-network',
                                                   id='longass-container-id',
+                                                  image=Bunch(tags=[service.image]),
+                                                  attrs={'Config': {'Env': []}},
                                                   name="{}-miniboss-123".format(service.name))]
         agent.run_image()
         assert len(self.docker._services_started) == 0
         assert self.docker._containers_ran == ['longass-container-id']
+
+
+    def test_start_new_container_if_old_has_different_tag(self):
+        service = FakeService()
+        agent = ServiceAgent(service, DEFAULT_OPTIONS, None)
+        self.docker._existing_containers = [Bunch(status='exited',
+                                                  network='the-network',
+                                                  id='longass-container-id',
+                                                  image=Bunch(tags=['different-tag']),
+                                                  attrs={'Config': {'Env': []}},
+                                                  name="{}-miniboss-123".format(service.name))]
+        agent.run_image()
+        assert len(self.docker._services_started) == 1
+        prefix, service, network_name = self.docker._services_started[0]
+        assert prefix == "service1-miniboss"
+        assert service.name == 'service1'
+        assert service.image == 'not/used'
+        assert network_name == 'the-network'
+        assert self.docker._containers_ran == []
+
+
+    def test_start_new_container_if_differing_env_value(self):
+        service = FakeService()
+        service.env = {'KEY': 'some-value'}
+        agent = ServiceAgent(service, DEFAULT_OPTIONS, None)
+        self.docker._existing_containers = [Bunch(status='exited',
+                                                  network='the-network',
+                                                  id='longass-container-id',
+                                                  image=Bunch(tags=['different-tag']),
+                                                  attrs={'Config': {'Env': ['KEY=other-value']}},
+                                                  name="{}-miniboss-123".format(service.name))]
+        agent.run_image()
+        assert len(self.docker._services_started) == 1
+        prefix, service, network_name = self.docker._services_started[0]
+        assert prefix == "service1-miniboss"
+        assert service.name == 'service1'
+        assert service.image == 'not/used'
+        assert network_name == 'the-network'
+        assert self.docker._containers_ran == []
 
 
     def test_start_new_if_run_new_containers(self):
@@ -143,6 +185,7 @@ class ServiceAgentTests(unittest.TestCase):
         self.docker._existing_containers = [Bunch(status='exited',
                                                   start=start,
                                                   network='the-network',
+                                                  attrs={'Config': {'Env': []}},
                                                   name="{}-miniboss-123".format(service.name))]
         agent.run_image()
         assert len(self.docker._services_started) == 1
@@ -160,6 +203,7 @@ class ServiceAgentTests(unittest.TestCase):
         self.docker._existing_containers = [Bunch(status='exited',
                                                   start=start,
                                                   network='the-network',
+                                                  attrs={'Config': {'Env': []}},
                                                   name="{}-miniboss-123".format(service.name))]
         agent.run_image()
         assert len(self.docker._services_started) == 1
@@ -198,6 +242,8 @@ class ServiceAgentTests(unittest.TestCase):
         self.docker._existing_containers = [Bunch(status='exited',
                                                   network='the-network',
                                                   id='longass-container-id',
+                                                  image=Bunch(tags=[service.image]),
+                                                  attrs={'Config': {'Env': []}},
                                                   name="{}-miniboss-123".format(service.name))]
         agent.start_service()
         agent.join()
@@ -274,7 +320,28 @@ class ServiceAgentTests(unittest.TestCase):
         assert fake_context.stopped_services[0] is fake_service
 
 
-    def test_build_image(self):
-        fake_service = FakeService()
+    @patch("miniboss.service_agent.datetime")
+    def test_build_image(self, mock_datetime):
+        now = datetime.now()
+        mock_datetime.now.return_value = now
+        fake_service = FakeService(name='myservice')
+        fake_service.build_from_directory = "the/service/dir"
         agent = ServiceAgent(fake_service, DEFAULT_OPTIONS, FakeRunningContext())
-        agent.build_service()
+        retval = agent.build_image()
+        assert len(self.docker._images_built) == 1
+        build_dir, dockerfile, image_tag = self.docker._images_built[0]
+        assert build_dir == "/etc/the/service/dir"
+        assert dockerfile == 'Dockerfile'
+        assert image_tag == now.strftime("myservice-miniboss-%Y-%m-%d-%H%M")
+        assert retval == image_tag
+
+
+    def test_build_image_dockerfile(self):
+        fake_service = FakeService(name='myservice')
+        fake_service.dockerfile = 'Dockerfile.other'
+        fake_service.build_from_directory = "the/service/dir"
+        agent = ServiceAgent(fake_service, DEFAULT_OPTIONS, FakeRunningContext())
+        agent.build_image()
+        assert len(self.docker._images_built) == 1
+        _, dockerfile, _ = self.docker._images_built[0]
+        assert dockerfile == 'Dockerfile.other'
