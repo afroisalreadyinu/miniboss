@@ -1,5 +1,7 @@
 [![afroisalreadyinu](https://circleci.com/gh/afroisalreadyinu/miniboss.svg?style=svg)](https://app.circleci.com/pipelines/github/afroisalreadyinu/miniboss)
 
+[![PyPI version](https://badge.fury.io/py/miniboss.svg)](https://badge.fury.io/py/miniboss)
+
 # miniboss
 
 miniboss is a Python application for locally running multiple dependent docker

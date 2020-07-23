@@ -1,3 +1,5 @@
 *.egg-info
 miniboss/__pycache__
 tests/__pycache__
+build/
+dist/
