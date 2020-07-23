@@ -230,6 +230,7 @@ value has been set.
 
 ## Todos
 
+- [ ] Add linting
 - [x] Don't use existing container if env changed
 - [x] Build and restart a container
 - [x] Stop signal as an option on service def
