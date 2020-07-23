@@ -3,7 +3,7 @@ from setuptools import setup
 
 setup(
     name = "miniboss",
-    version = "0.0.1",
+    version = "0.1.0",
     author = "Ulas Turkmen",
     description = "Containerized app testing framework",
     install_requires = [],
