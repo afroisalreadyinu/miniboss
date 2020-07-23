@@ -9,5 +9,14 @@ setup(
     install_requires = [],
     tests_require = [],
     packages=['miniboss'],
-    url = "https://github.com/afroisalredyinu/miniboss"
+    url = "https://github.com/afroisalredyinu/miniboss",
+    license = "MIT",
+    classifiers = [
+        "License :: OSI Approved :: MIT License",
+        "Development Status :: 3 - Alpha",
+        "Topic :: Software Development :: Build Tools",
+        "Topic :: Software Development :: Testing",
+        "Programming Language :: Python :: 3",
+        "Intended Audience :: Developers"
+    ]
 )
