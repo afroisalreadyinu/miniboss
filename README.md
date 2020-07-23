@@ -2,20 +2,20 @@
 
 # miniboss
 
-miniboss is a Python application that can be used to locally start multiple
-dependent docker services, individually rebuild and restart them, and run
-initialization jobs. The definitions for services can be written in Python,
-allowing you to use
+miniboss is a Python application for locally running multiple dependent docker
+services, individually rebuilding and restarting them, and managing application
+state with lifecycle hooks. Services definitions can be written in Python,
+allowing the use of programming logic instead of markup.
 
 ## Why not docker-compose?
 
-First and foremost, this is not YAML. `docker-compose` is in the school of
-yaml-as-service-description, which means that going beyond a static description
-of a service set necessitates templates, or some kind of scripting. One could as
-well use a full-blown programming language, while trying to keep simple things
-simple. Another thing sorely missing in `docker-compose` is lifecycle hooks,
-i.e. a mechanism whereby scripts can be executed when the state of a container
-changes. Lifecycle hooks have been
+First and foremost, good old Python instead of YAML. `docker-compose` is in the
+school of yaml-as-service-description, which means that going beyond a static
+description of a service set necessitates templates, or some kind of scripting.
+One could as well use a full-blown programming language, while trying to keep
+simple things simple. Another thing sorely missing in `docker-compose` is
+lifecycle hooks, i.e. a mechanism whereby scripts can be executed when the state
+of a container changes. Lifecycle hooks have been
 [requested](https://github.com/docker/compose/issues/1809)
 [multiple](https://github.com/docker/compose/issues/5764)
 [times](https://github.com/compose-spec/compose-spec/issues/84), but were not
@@ -150,6 +150,11 @@ class Database(miniboss.Service):
         else:
             return True
 ```
+
+One thing to pay attention to is that, in the call to `psycopg2.connect`, we are
+using `localhost:5433` as host and port, whereas the `python-todo` environment
+variable `DBURI` has `appdb:5433` instead. This is because the `ping` method is
+executed on the host computer. The next section explains the details.
 
 ## Ports and hosts
 
