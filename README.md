@@ -124,17 +124,68 @@ to the correct states and execute actions on the container:
   bringing it to a certain state. You can also use the global context in this
   method; see [The global context](#the-global-context) for details.
 
-Both of these methods do nothing by default.
+Both of these methods do nothing by default. A service is not registered as
+properly started before both of these lifecycle methods are processed
+successfully; only then are the dependant services started.
+
+The `ping` method is particularly useful if you want to avoid the situation
+described above, where a container starts, but the main process has not
+completed initializing before any dependent services start. Here is an example
+for how one would ping the `appdb` service to make sure the Postgresql database
+is accepting connections:
+
+```python
+import psycopg2
+
+class Database(miniboss.Service):
+    # fields same as above
+
+    def ping(self):
+        try:
+            connection = psycopg2.connect("postgresql://dbuser:dbpwd@localhost:5433/appdb")
+            cur = connection.cursor()
+            cur.execute('SELECT 1')
+        except psycopg2.OperationalError:
+            return False
+        else:
+            return True
+```
 
 ## Ports and hosts
 
-TBW
+miniboss starts services on an isolated bridge network, mapping no ports by
+default. On this network, services can contact each other on the ports that the
+applications are listening on. The `appdb` Postgresql service above, for
+example, can be contacted on the port 5432, the default port on which Postgresql
+listens. This is the reason the host part of the `DB_URI` environment variable
+on the `python-todo` service is `appdb:5432`. If you want to reach `appdb` on
+the port `5432` from the host system, which would be necessary to implement the
+ping method, you need to make this mapping explicit with the `ports` field of
+the service definition. This field accepts a dictionary of int keys and int
+values. The key is the service container port, and the value is the host port.
+In the case of `appdb`, the Postgresql port of the container is mapped to port
+5433 on the local machine, in order not to collide with any local Postgresql
+instances.
 
 ### The global context
 
 The object `miniboss.Context`, derived from the standard dict, can be used to
 store values that are accessible to other service definitions, especially in the
-`env` field.
+`env` field. For example, if you create a user in the `post_start_init` method
+of a service, and would like to make the ID of this user available to a
+dependant service, you can set it on the context with `Context['user_id'] =
+user.id`. In the definition of the second service, you can refer to this value
+in a field with the standard Python keyword formatting syntax, as in the
+following:
+
+```python
+class DependantService(miniboss.Service):
+    # other fields
+	env = {'USER_ID': '{user_id}'}
+```
+
+You can of course also programmatically access it as `Context['user_id']` once a
+value has been set.
 
 ## Service definition fields
 
@@ -164,6 +215,13 @@ store values that are accessible to other service definitions, especially in the
     name (not by integer value, so don't use values from the `signal` standard
     library module here). Default is `SIGTERM`. Accepted values are `SIGINT`,
     `SIGTERM`, `SIGKILL` and `SIGQUIT`.
+
+- **`build_from_directory`**: The directory from which a service can be
+    reloaded. It should be either absolute, or relative to the main script.
+    Required if you want to reload a service.
+
+- **`dockerfile`**: Dockerfile to use when building a service from the
+  `build_from_directory`. Default is `Dockerfile`.
 
 ## Todos
 

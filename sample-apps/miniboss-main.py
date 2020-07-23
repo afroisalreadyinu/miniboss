@@ -1,5 +1,6 @@
 #! /usr/bin/env python3
 import miniboss
+import psycopg2
 
 class Database(miniboss.Service):
     name = "appdb"
@@ -8,6 +9,16 @@ class Database(miniboss.Service):
            "POSTGRES_USER": "dbuser",
            "POSTGRES_DB": "appdb" }
     ports = {5432: 5433}
+
+    def ping(self):
+        try:
+            connection = psycopg2.connect("postgresql://dbuser:dbpwd@localhost:5433/appdb")
+            cur = connection.cursor()
+            cur.execute('SELECT 1')
+        except psycopg2.OperationalError:
+            return False
+        else:
+            return True
 
 class Application(miniboss.Service):
     name = "python-todo"
