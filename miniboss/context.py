@@ -1,5 +1,4 @@
-class ContextError(Exception):
-    pass
+from miniboss.exceptions import ContextError
 
 class _Context(dict):
 

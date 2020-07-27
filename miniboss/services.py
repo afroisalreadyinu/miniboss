@@ -13,6 +13,7 @@ import requests.exceptions
 from miniboss.docker_client import DockerClient
 from miniboss.service_agent import Options
 from miniboss.running_context import RunningContext
+from miniboss.exceptions import ServiceLoadError, ServiceDefinitionError
 
 logging.basicConfig(
     level=logging.INFO,
@@ -25,12 +26,6 @@ KEYCLOAK_PORT = 8090
 OSTKREUZ_PORT = 8080
 ALLOWED_STOP_SIGNALS = ["SIGINT", "SIGTERM", "SIGKILL", "SIGQUIT"]
 
-
-class ServiceLoadError(Exception):
-    pass
-
-class ServiceDefinitionError(Exception):
-    pass
 
 class ServiceMeta(type):
     def __new__(cls, name, bases, attrdict):

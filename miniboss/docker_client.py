@@ -2,6 +2,8 @@ import logging
 import random
 import time
 
+from miniboss.exceptions import DockerException
+
 import docker
 import docker.errors
 
@@ -10,9 +12,6 @@ logger = logging.getLogger(__name__)
 DIGITS = "0123456789"
 
 _the_docker = None
-
-class DockerException(Exception):
-    pass
 
 class DockerClient:
 

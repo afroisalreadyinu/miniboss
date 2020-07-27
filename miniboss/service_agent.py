@@ -7,6 +7,7 @@ from typing import NamedTuple
 
 from miniboss.docker_client import DockerClient
 from miniboss.context import Context
+from miniboss.exceptions import ServiceAgentException
 
 logger = logging.getLogger(__name__)
 
@@ -32,9 +33,6 @@ class RunCondition:
 class Actions:
     START = 'start'
     STOP = 'stop'
-
-class ServiceAgentException(Exception):
-    pass
 
 def container_env(container):
     env = container.attrs['Config']['Env']

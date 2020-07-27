@@ -2,12 +2,10 @@ import os
 import click
 
 from miniboss import services
+from miniboss.exceptions import MinibossCLIError
 
 @click.group()
 def cli():
-    pass
-
-class MinibossCLIError(Exception):
     pass
 
 def get_main_directory():
