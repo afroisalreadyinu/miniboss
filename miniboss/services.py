@@ -13,6 +13,7 @@ import requests.exceptions
 from miniboss.docker_client import DockerClient
 from miniboss.service_agent import Options
 from miniboss.running_context import RunningContext
+from miniboss.context import Context
 from miniboss.exceptions import ServiceLoadError, ServiceDefinitionError
 
 logging.basicConfig(
@@ -215,6 +216,8 @@ class ServiceCollection:
 
 def start_services(maindir, run_new_containers, exclude, network_name, timeout):
     docker = DockerClient.get_client()
+    if not run_new_containers:
+        Context.load_from(maindir)
     collection = ServiceCollection()
     collection.load_definitions()
     collection.exclude_for_start(exclude)
@@ -222,6 +225,7 @@ def start_services(maindir, run_new_containers, exclude, network_name, timeout):
     options = Options(network_name, timeout, run_new_containers, False, maindir)
     service_names = collection.start_all(options)
     logger.info("Started services: %s", ", ".join(service_names))
+    Context.save_to(maindir)
 
 
 def stop_services(maindir, exclude, network_name, remove, timeout):

@@ -39,4 +39,9 @@ class _Context(dict):
     def extrapolate_values(self, a_dict):
         return {key: self.extrapolate(value) for key,value in a_dict.items()}
 
+    def _reset(self):
+        # Used only for testing
+        for key in list(self.keys()):
+            self.pop(key)
+
 Context = _Context()

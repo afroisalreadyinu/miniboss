@@ -1,6 +1,9 @@
+import os
+import json
 import unittest
 from unittest.mock import patch
 from types import SimpleNamespace as Bunch
+import tempfile
 
 import pytest
 
@@ -11,7 +14,7 @@ from miniboss.services import (connect_services,
                                ServiceDefinitionError)
 
 from miniboss.service_agent import Options, ServiceAgent
-from miniboss import services, service_agent
+from miniboss import services, service_agent, Context
 
 from common import FakeDocker, FakeContainer
 
@@ -627,31 +630,49 @@ class ServiceCommandTests(unittest.TestCase):
 
         self.collection = MockServiceCollection()
         services.ServiceCollection = lambda: self.collection
+        Context._reset()
 
-    def test_start_service_create_network(self):
-        services.start_services('/etc', False, [], "miniboss", 50)
+    def test_start_services_create_network(self):
+        services.start_services('/tmp', False, [], "miniboss", 50)
         assert self.docker._networks_created == ["miniboss"]
 
-    def test_start_service_exclude(self):
-        services.start_services("/etc", True, ['blah'], "miniboss", 50)
+    def test_start_services_exclude(self):
+        services.start_services("/tmp", True, ['blah'], "miniboss", 50)
         assert self.collection.excluded == ['blah']
         assert self.collection.options.run_new_containers
 
+    def test_start_services_save_context(self):
+        directory = tempfile.mkdtemp()
+        Context['key_one'] = 'a_value'
+        Context['key_two'] = 'other_value'
+        services.start_services(directory, True, [], "miniboss", 50)
+        with open(os.path.join(directory, ".miniboss-context"), "r") as context_file:
+            context_data = json.load(context_file)
+        assert context_data == {'key_one': 'a_value', 'key_two': 'other_value'}
+
+    def test_load_context_on_new(self):
+        directory = tempfile.mkdtemp()
+        with open(os.path.join(directory, ".miniboss-context"), "w") as context_file:
+            context_file.write(json.dumps({"key_one": "value_one", "key_two": "value_two"}))
+        services.start_services(directory, False, [], "miniboss", 50)
+        assert Context['key_one'] == 'value_one'
+        assert Context['key_two'] == 'value_two'
+
     def test_stop_services(self):
-        services.stop_services('/etc', ['test'], "miniboss", False, 50)
+        services.stop_services('/tmp', ['test'], "miniboss", False, 50)
         assert self.collection.options.network_name == 'miniboss'
         assert self.collection.options.timeout == 50
-        assert self.collection.options.run_dir == '/etc'
+        assert self.collection.options.run_dir == '/tmp'
         assert not self.collection.options.remove
         assert self.collection.excluded == ['test']
 
     def test_reload_service(self):
-        services.reload_service('/etc', 'the-service', "miniboss", False, 50, False)
+        services.reload_service('/tmp', 'the-service', "miniboss", False, 50, False)
         assert self.collection.checked_can_be_built == 'the-service'
         assert self.collection.updated_for_base_service == 'the-service'
         assert self.collection.options.network_name == 'miniboss'
         assert self.collection.options.timeout == 50
-        assert self.collection.options.run_dir == '/etc'
+        assert self.collection.options.run_dir == '/tmp'
         assert self.collection.built == 'the-service'
         assert not self.collection.options.remove
         assert not self.collection.options.run_new_containers
