@@ -112,19 +112,22 @@ an error.
 
 ## Lifecycle events
 
-`miniboss.Service` has two methods that can be overriden in order to move it
-to the correct states and execute actions on the container:
+`miniboss.Service` has two methods that can be overriden in order to correctly
+change states and execute actions on the container:
 
 - **`Service.ping()`**: Executed repeatedly right after the service starts with
   a 0.1 second delay between executions. If this method does not return `True`
   within a given timeout value (can be set with the `--timeout` argument,
   default is 300 seconds), the service is registered as failed. Any exceptions
-  in this method will be propagated, and also cause the service to fail.
+  in this method will be propagated, and also cause the service to fail. If
+  there is already a service instance running, it is not pinged.
 
 - **`Service.post_start_init()`**: This method is executed after a successful
   `ping`. It can be used to prime a service by e.g. creating data on it, or
   bringing it to a certain state. You can also use the global context in this
-  method; see [The global context](#the-global-context) for details.
+  method; see [The global context](#the-global-context) for details. If there is
+  already a service running, or an existing container image is started insted of
+  creating a new one, this method is not called.
 
 Both of these methods do nothing by default. A service is not registered as
 properly started before both of these lifecycle methods are processed
