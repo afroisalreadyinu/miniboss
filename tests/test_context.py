@@ -58,3 +58,7 @@ class ContextTests(unittest.TestCase):
         new_context.load_from(directory)
         assert new_context['blah'] == 123
         assert new_context['yada'] == "hello"
+
+    def test_load_from_missing(self):
+        context = _Context()
+        context.load_from("/not/existing/directory/blahakshdakusdhau")

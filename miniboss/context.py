@@ -1,7 +1,10 @@
 import json
 import pathlib
+import logging
 
 from miniboss.exceptions import ContextError
+
+logger = logging.getLogger(__name__)
 
 class _Context(dict):
 
@@ -12,9 +15,12 @@ class _Context(dict):
 
     def load_from(self, directory):
         path = pathlib.Path(directory) / ".miniboss-context"
-        with open(path, 'r') as context_file:
-            new_data = json.load(context_file)
-        self.update(**new_data)
+        try:
+            with open(path, 'r') as context_file:
+                new_data = json.load(context_file)
+            self.update(**new_data)
+        except FileNotFoundError:
+            logger.info("No miniboss context file in %s", directory)
 
     def extrapolate(self, env_value):
         if not hasattr(env_value, "format"):
