@@ -22,6 +22,13 @@ class _Context(dict):
         except FileNotFoundError:
             logger.info("No miniboss context file in %s", directory)
 
+    def remove_file(self, directory):
+        path = pathlib.Path(directory) / ".miniboss-context"
+        try:
+            path.unlink()
+        except FileNotFoundError:
+            logger.info("No miniboss context file in %s", directory)
+
     def extrapolate(self, env_value):
         if not hasattr(env_value, "format"):
             return env_value

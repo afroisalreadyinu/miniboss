@@ -4,6 +4,7 @@ import unittest
 from unittest.mock import patch
 from types import SimpleNamespace as Bunch
 import tempfile
+import pathlib
 
 import pytest
 
@@ -665,6 +666,14 @@ class ServiceCommandTests(unittest.TestCase):
         assert self.collection.options.run_dir == '/tmp'
         assert not self.collection.options.remove
         assert self.collection.excluded == ['test']
+
+    def test_stop_services_remove_context(self):
+        directory = tempfile.mkdtemp()
+        path = pathlib.Path(directory) / ".miniboss-context"
+        with open(path, "w") as context_file:
+            context_file.write(json.dumps({"key_one": "value_one", "key_two": "value_two"}))
+        services.stop_services(directory, [], "miniboss", True, 50)
+        assert not path.exists()
 
     def test_reload_service(self):
         services.reload_service('/tmp', 'the-service', "miniboss", False, 50, False)

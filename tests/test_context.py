@@ -62,3 +62,16 @@ class ContextTests(unittest.TestCase):
     def test_load_from_missing(self):
         context = _Context()
         context.load_from("/not/existing/directory/blahakshdakusdhau")
+
+    def test_remove_file(self):
+        directory = tempfile.mkdtemp()
+        context = _Context(blah=123, yada="hello")
+        context.save_to(directory)
+        path = os.path.join(directory, ".miniboss-context")
+        assert os.path.exists(path)
+        context.remove_file(directory)
+        assert not os.path.exists(path)
+
+    def test_remove_file_missing(self):
+        context = _Context()
+        context.remove_file("/not/existing/directory/blahakshdakusdhau")

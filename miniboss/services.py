@@ -235,6 +235,8 @@ def stop_services(maindir, exclude, network_name, remove, timeout):
     collection.load_definitions()
     collection.exclude_for_stop(exclude)
     collection.stop_all(options)
+    if remove:
+        Context.remove_file(maindir)
 
 
 def reload_service(maindir, service, network_name, remove, timeout, run_new_containers):
