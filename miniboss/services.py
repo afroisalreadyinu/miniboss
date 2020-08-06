@@ -246,7 +246,10 @@ def reload_service(maindir, service, network_name, remove, timeout, run_new_cont
     stop_collection.check_can_be_built(service)
     stop_collection.update_for_base_service(service)
     stop_collection.stop_all(options)
-
+    # We don't need to do this earlier, as the context is not used by the stop
+    # functionality
+    Context.load_from(maindir)
     start_collection = ServiceCollection()
     start_collection.load_definitions()
     start_collection.start_all(options, build=service)
+    Context.save_to(maindir)

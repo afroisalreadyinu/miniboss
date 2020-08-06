@@ -672,6 +672,8 @@ class ServiceCommandTests(unittest.TestCase):
         path = pathlib.Path(directory) / ".miniboss-context"
         with open(path, "w") as context_file:
             context_file.write(json.dumps({"key_one": "value_one", "key_two": "value_two"}))
+        services.stop_services(directory, [], "miniboss", False, 50)
+        assert path.exists()
         services.stop_services(directory, [], "miniboss", True, 50)
         assert not path.exists()
 
@@ -685,3 +687,15 @@ class ServiceCommandTests(unittest.TestCase):
         assert self.collection.built == 'the-service'
         assert not self.collection.options.remove
         assert not self.collection.options.run_new_containers
+
+
+    def test_reload_service_save_and_load_context(self):
+        directory = tempfile.mkdtemp()
+        path = pathlib.Path(directory) / ".miniboss-context"
+        with open(path, "w") as context_file:
+            context_file.write(json.dumps({"key_one": "value_one",
+                                           "key_two": "value_two"}))
+        services.reload_service(directory, 'the-service', "miniboss", False, 50, False)
+        assert Context['key_one'] == 'value_one'
+        assert Context['key_two'] == 'value_two'
+        assert path.exists()
