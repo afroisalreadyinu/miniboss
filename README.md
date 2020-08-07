@@ -110,6 +110,32 @@ also when stopping services with the same `--exclude` argument. Running
 service. If you exclude a service whose dependency will be stopped, you will get
 an error.
 
+### Reloading a service
+
+miniboss also allows you to reload a specific service by building a new
+container image from a directory. You need to provide the path to the directory
+in which the Dockerfile and code of a service resides in order to use this
+feature. You can also provide an alternative Dockerfile name. Here is an
+example:
+
+```
+class Application(miniboss.Service):
+    name = "python-todo"
+    image = "afroisalreadyin/python-todo:0.0.1"
+    env = {"DB_URI": "postgresql://dbuser:dbpwd@appdb:5432/appdb"}
+    dependencies = ["appdb"]
+    ports = {8080: 8080}
+    build_from_directory = "python-todo/"
+	dockerfile = "Dockerfile"
+```
+
+The `build_from_directory` option has to be a path relative to the main miniboss
+file. With such a service configuration, you can run `./miniboss-main.py reload
+python-todo`, which will build the container image, stop the running service
+container, and restart the new image. Since [the context](#the-global-context)
+generated at start is saved in a file, these context values are available to the
+new container.
+
 ## Lifecycle events
 
 `miniboss.Service` has two methods that can be overriden in order to correctly
@@ -196,6 +222,11 @@ class DependantService(miniboss.Service):
 
 You can of course also programmatically access it as `Context['user_id']` once a
 value has been set.
+
+When a container set is started, the context that is generated is saved at the
+end in the file `.miniboss-context`, in order to be used when the same
+containers are restarted or a specific service is
+[reloaded](#reloading-a-service).
 
 ## Service definition fields
 
