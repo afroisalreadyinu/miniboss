@@ -266,8 +266,11 @@ containers are restarted or a specific service is
 
 ## Todos
 
-- [ ] Bug: context values when reloading a service
 - [ ] Add linting
+- [ ] Running tests once system started
+- [ ] Using context values in tests
+- [ ] Dependent test suites and setups
+- [x] Bug: context values when reloading a service
 - [x] Derive exceptions from a base `MinibossException`
 - [x] Don't use existing container if env changed
 - [x] Build and restart a container

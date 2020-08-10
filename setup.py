@@ -10,7 +10,7 @@ allowing the use of programming logic instead of markup.
 
 setup(
     name = "miniboss",
-    version = "0.1.2",
+    version = "0.2.0",
     author = "Ulas Turkmen",
     description = "Containerized app testing framework",
     long_description = long_description,
