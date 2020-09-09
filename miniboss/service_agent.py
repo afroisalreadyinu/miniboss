@@ -11,6 +11,7 @@ from miniboss.exceptions import ServiceAgentException
 
 logger = logging.getLogger(__name__)
 
+# pylint: disable=inherit-non-class
 class Options(NamedTuple):
     network_name: str
     timeout: int
@@ -105,8 +106,10 @@ class ServiceAgent(threading.Thread):
         self.service.env = Context.extrapolate_values(self.service.env)
         # If there are any running with the name prefix, connected to the same
         # network, skip creating
-        existings = client.existing_on_network(self.container_name_prefix, self.options.network_name)
+        existings = client.existing_on_network(self.container_name_prefix,
+                                               self.options.network_name)
         if existings:
+            # pylint: disable=fixme
             # TODO fix this; it should be able to deal with multiple existing
             # containers
             existing = existings[0]
@@ -114,7 +117,7 @@ class ServiceAgent(threading.Thread):
                 logger.info("Found running container for %s, not starting a new one",
                             self.service.name)
                 return RunCondition.ALREADY_RUNNING
-            elif existing.status == 'exited':
+            if existing.status == 'exited':
                 existing_env = container_env(existing)
                 differing_keys = [key for key in self.service.env
                                   if existing_env.get(key) != self.service.env[key]]
@@ -126,7 +129,8 @@ class ServiceAgent(threading.Thread):
                              self.service.image not in existing.image.tags or
                              bool(differing_keys))
                 if not start_new:
-                    logger.info("There is an existing container for %s, not creating a new one", self.service.name)
+                    logger.info("There is an existing container for %s, not creating a new one",
+                                self.service.name)
                     client.run_container(existing.id)
                     return RunCondition.STARTED
         logger.info("Creating new container for service %s", self.service.name)
@@ -143,7 +147,7 @@ class ServiceAgent(threading.Thread):
                 logger.info("Service %s pinged successfully", self.service.name)
                 return True
             time.sleep(0.1)
-        logger.error("Could not ping service with timeout of {}".format(self.options.timeout))
+        logger.error("Could not ping service with timeout of %d", self.options.timeout)
         return False
 
     def start_service(self):
@@ -175,7 +179,7 @@ class ServiceAgent(threading.Thread):
                     return
             if run_condition == RunCondition.CREATED:
                 self.service.post_start_init()
-        except:
+        except Exception: # pylint: disable=broad-except
             logger.exception("Error starting service")
             self.status = AgentStatus.FAILED
             self.context.service_failed(self.service)

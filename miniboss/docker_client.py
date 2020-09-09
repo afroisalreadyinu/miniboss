@@ -2,10 +2,10 @@ import logging
 import random
 import time
 
-from miniboss.exceptions import DockerException
-
 import docker
 import docker.errors
+
+from miniboss.exceptions import DockerException
 
 logger = logging.getLogger(__name__)
 
@@ -49,9 +49,11 @@ class DockerClient:
         try:
             self.lib_client.images.build(tag=image_tag, path=build_dir, dockerfile=dockerfile)
         except docker.errors.BuildError as build_error:
-            raise DockerException("Error building image: {}".format(build_error.msg))
+            msg = "Error building image: {}".format(build_error.msg)
+            raise DockerException(msg) from None
         except docker.errors.APIError as api_error:
-            raise DockerException("Error building image: {}".format(api_error.explanation))
+            msg = "Error building image: {}".format(api_error.explanation)
+            raise DockerException(msg) from None
 
     def run_container(self, container_id):
         # The container should be already created but not in state running or starting
@@ -64,14 +66,17 @@ class DockerClient:
         except docker.errors.NotFound:
             raise DockerException(
                 "Something went terribly wrong: Could not find container {:s}".format(
-                    container_id))
+                    container_id)) from None
         if container.status != 'running':
             logs = self.lib_client.api.logs(container.id).decode('utf-8')
             raise DockerException(logs)
         return container
 
 
-    def run_service_on_network(self, name_prefix, service, network_name): # service: services.Service
+    def run_service_on_network(self,
+                               name_prefix,
+                               service,  # service: services.Service
+                               network_name):
         container_name = "{:s}-{:s}".format(name_prefix, ''.join(random.sample(DIGITS, 4)))
         networking_config = self.lib_client.api.create_networking_config({
             network_name: self.lib_client.api.create_endpoint_config(aliases=[service.name])
@@ -88,6 +93,7 @@ class DockerClient:
                 networking_config=networking_config,
                 stop_signal=service.stop_signal)
         except docker.errors.ImageNotFound:
-            raise DockerException("Image {:s} could not be found; please make sure it exists".format(service.image)) from None
+            msg = "Image {:s} could not be found; please make sure it exists".format(service.image)
+            raise DockerException(msg) from None
         container = self.run_container(container.get('Id'))
         logger.info("Started container id %s for service %s", container.id, service.name)

@@ -40,7 +40,7 @@ class RunningContext:
 
     def service_started(self, started_service):
         with self.service_pop_lock:
-            started = self.agent_set.pop(started_service)
+            self.agent_set.pop(started_service)
             self.processed_services.append(started_service)
             for agent in self.agent_set.values():
                 agent.process_service_started(started_service)
@@ -48,7 +48,7 @@ class RunningContext:
 
     def service_stopped(self, stopped_service):
         with self.service_pop_lock:
-            started = self.agent_set.pop(stopped_service)
+            self.agent_set.pop(stopped_service)
             self.processed_services.append(stopped_service)
             for agent in self.agent_set.values():
                 agent.process_service_stopped(stopped_service)

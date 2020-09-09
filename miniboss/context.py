@@ -6,15 +6,17 @@ from miniboss.exceptions import ContextError
 
 logger = logging.getLogger(__name__)
 
+
 class _Context(dict):
+    filename = ".miniboss-context"
 
     def save_to(self, directory):
-        path = pathlib.Path(directory) / ".miniboss-context"
+        path = pathlib.Path(directory) / self.filename
         with open(path, 'w') as context_file:
             context_file.write(json.dumps(self))
 
     def load_from(self, directory):
-        path = pathlib.Path(directory) / ".miniboss-context"
+        path = pathlib.Path(directory) / self.filename
         try:
             with open(path, 'r') as context_file:
                 new_data = json.load(context_file)
@@ -23,7 +25,7 @@ class _Context(dict):
             logger.info("No miniboss context file in %s", directory)
 
     def remove_file(self, directory):
-        path = pathlib.Path(directory) / ".miniboss-context"
+        path = pathlib.Path(directory) / self.filename
         try:
             path.unlink()
         except FileNotFoundError:
@@ -36,12 +38,14 @@ class _Context(dict):
             return env_value.format(**self)
         except KeyError:
             raise ContextError("Could not extrapolate string '{}', existing keys: {}".format(
-                env_value, ",".join(self.keys())))
+                env_value, ",".join(self.keys()))) from None
         except ValueError:
             # This happens when there is a type mismatch
-            raise ContextError("Could not extrapolate string '{}' due to type mismatch".format(env_value))
+            raise ContextError("Could not extrapolate string '{}' due to type mismatch"
+                               .format(env_value)) from None
         except IndexError:
-            raise ContextError("Only keyword argument extrapolation allowed, violating string: '{}'".format(env_value))
+            raise ContextError("Only keyword argument extrapolation allowed, violating string: '{}'"
+                               .format(env_value)) from None
 
     def extrapolate_values(self, a_dict):
         return {key: self.extrapolate(value) for key,value in a_dict.items()}

@@ -1,14 +1,7 @@
 import time
 import logging
-from collections import Counter, Mapping, deque
-import threading
-import copy
-from itertools import chain
-
-import click
-import requests
-import furl
-import requests.exceptions
+from collections import Counter, deque
+from collections.abc import Mapping
 
 from miniboss.docker_client import DockerClient
 from miniboss.service_agent import Options
@@ -51,12 +44,14 @@ class ServiceMeta(type):
             build_dir = attrdict["build_from_directory"]
             if not isinstance(build_dir, str) or build_dir == '':
                 raise ServiceDefinitionError(
-                    "Field 'build_from_directory' of service class {:s} must be a non-empty string".format(name))
+                    "Field 'build_from_directory' of service class {:s} must be a non-empty string"
+                    .format(name))
         if "dockerfile" in attrdict:
             dockerfile = attrdict["dockerfile"]
             if not isinstance(dockerfile, str) or dockerfile == '':
                 raise ServiceDefinitionError(
-                    "Field 'dockerfile' of service class {:s} must be a non-empty string".format(name))
+                    "Field 'dockerfile' of service class {:s} must be a non-empty string"
+                    .format(name))
         if "stop_signal" in attrdict:
             signal_name = attrdict["stop_signal"]
             if signal_name not in ALLOWED_STOP_SIGNALS:
@@ -75,6 +70,7 @@ class Service(metaclass=ServiceMeta):
     build_from_directory = None
     dockerfile = "Dockerfile"
 
+    # pylint: disable=no-self-use
     def ping(self):
         return True
 
@@ -137,7 +133,8 @@ class ServiceCollection:
         self.excluded = exclude
         for service_name in exclude:
             service = self.all_by_name[service_name]
-            deps_to_be_stopped = [dep.name for dep in service.dependencies if dep.name not in exclude]
+            deps_to_be_stopped = [dep.name for dep in service.dependencies
+                                  if dep.name not in exclude]
             if deps_to_be_stopped:
                 raise ServiceLoadError("{:s} is to be stopped, but {:s} depends on it".format(
                     deps_to_be_stopped[0], service.name))
@@ -146,6 +143,7 @@ class ServiceCollection:
 
     def check_circular_dependencies(self):
         with_dependencies = [x for x in self.all_by_name.values() if x.dependencies != []]
+        # pylint: disable=cell-var-from-loop
         for service in with_dependencies:
             start = service.name
             count = 0
@@ -238,7 +236,7 @@ def stop_services(maindir, exclude, network_name, remove, timeout):
     if remove:
         Context.remove_file(maindir)
 
-
+# pylint: disable=too-many-arguments
 def reload_service(maindir, service, network_name, remove, timeout, run_new_containers):
     options = Options(network_name, timeout, remove, run_new_containers, maindir)
     stop_collection = ServiceCollection()
