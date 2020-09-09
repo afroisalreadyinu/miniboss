@@ -270,7 +270,9 @@ containers are restarted or a specific service is
 - [ ] Mounting volumes
 - [ ] pre-start lifetime event
 - [ ] Running one-off containers
+- [ ] Soft dependencies
 - [ ] Configuration object extrapolation
+- [ ] Integration tests
 - [ ] Running tests once system started
 - [ ] Using context values in tests
 - [ ] Dependent test suites and setups
