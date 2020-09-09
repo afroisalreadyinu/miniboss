@@ -267,6 +267,10 @@ containers are restarted or a specific service is
 ## Todos
 
 - [ ] Add linting
+- [ ] Mounting volumes
+- [ ] pre-start lifetime event
+- [ ] Running one-off containers
+- [ ] Configuration object extrapolation
 - [ ] Running tests once system started
 - [ ] Using context values in tests
 - [ ] Dependent test suites and setups
