@@ -271,8 +271,8 @@ containers are restarted or a specific service is
 - [ ] Mounting volumes
 - [ ] pre-start lifetime event
 - [ ] Running one-off containers
-- [ ] Soft dependencies
 - [ ] Configuration object extrapolation
+- [ ] Read specs from docker-compose.yml
 - [ ] Integration tests
 - [ ] Running tests once system started
 - [ ] Using context values in tests
