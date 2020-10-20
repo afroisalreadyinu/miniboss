@@ -72,6 +72,20 @@ class DockerClient:
             raise DockerException(logs)
         return container
 
+    def check_image(self, tag):
+        try:
+            self.lib_client.images.get(tag)
+        except docker.errors.ImageNotFound:
+            pass
+        else:
+            return
+        logger.info("Image %s does not exist, will pull it", tag)
+        try:
+            self.lib_client.images.pull(tag)
+        except docker.errors.APIError as api_error:
+            raise DockerException("Could not pull image {} due to API error: {}".format(
+                tag, api_error.explanation)) from None
+
 
     def run_service_on_network(self,
                                name_prefix,
@@ -82,6 +96,7 @@ class DockerClient:
             network_name: self.lib_client.api.create_endpoint_config(aliases=[service.name])
         })
         host_config=self.lib_client.api.create_host_config(port_bindings=service.ports)
+        self.check_image(service.image)
         try:
             container = self.lib_client.api.create_container(
                 service.image,

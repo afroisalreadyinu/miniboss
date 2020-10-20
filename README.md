@@ -267,7 +267,7 @@ containers are restarted or a specific service is
 ## Todos
 
 - [x] Add linting
-- [ ] Pull containers
+- [x] Pull containers
 - [ ] Mounting volumes
 - [ ] pre-start lifetime event
 - [ ] Running one-off containers
