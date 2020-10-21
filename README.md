@@ -268,12 +268,12 @@ containers are restarted or a specific service is
 
 - [x] Add linting
 - [x] Pull containers
+- [ ] Integration tests
 - [ ] Mounting volumes
 - [ ] pre-start lifetime event
 - [ ] Running one-off containers
 - [ ] Configuration object extrapolation
 - [ ] Read specs from docker-compose.yml
-- [ ] Integration tests
 - [ ] Running tests once system started
 - [ ] Using context values in tests
 - [ ] Dependent test suites and setups
