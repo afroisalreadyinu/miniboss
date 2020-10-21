@@ -62,6 +62,7 @@ class ServiceMeta(type):
 
 class Service(metaclass=ServiceMeta):
     name = None
+    image = ""
     dependencies = []
     ports = {}
     env = {}

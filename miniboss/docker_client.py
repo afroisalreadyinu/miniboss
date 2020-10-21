@@ -112,3 +112,4 @@ class DockerClient:
             raise DockerException(msg) from None
         container = self.run_container(container.get('Id'))
         logger.info("Started container id %s for service %s", container.id, service.name)
+        return container_name
