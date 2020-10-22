@@ -5,7 +5,7 @@ import time
 import docker
 import docker.errors
 
-from miniboss.exceptions import DockerException
+from miniboss.exceptions import DockerException, ContainerStartException
 
 logger = logging.getLogger(__name__)
 
@@ -69,7 +69,7 @@ class DockerClient:
                     container_id)) from None
         if container.status != 'running':
             logs = self.lib_client.api.logs(container.id).decode('utf-8')
-            raise DockerException(logs)
+            raise ContainerStartException(logs, container.name)
         return container
 
     def check_image(self, tag):
