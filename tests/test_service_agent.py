@@ -210,6 +210,16 @@ class ServiceAgentTests(unittest.TestCase):
         assert not restarted
 
 
+    def test_pre_start_before_run(self):
+        fake_context = FakeRunningContext()
+        fake_service = FakeService()
+        assert not fake_service.pre_start_called
+        agent = ServiceAgent(fake_service, DEFAULT_OPTIONS, fake_context)
+        agent.start_service()
+        agent.join()
+        assert fake_service.pre_start_called
+
+
     def test_ping_and_init_after_run(self):
         fake_context = FakeRunningContext()
         fake_service = FakeService()

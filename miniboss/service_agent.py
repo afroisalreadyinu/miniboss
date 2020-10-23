@@ -171,6 +171,7 @@ class ServiceAgent(threading.Thread):
 
     def start_container(self):
         try:
+            self.service.pre_start()
             run_condition = self.run_image()
             if run_condition != RunCondition.ALREADY_RUNNING:
                 if not self.ping():

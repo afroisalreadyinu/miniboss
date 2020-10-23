@@ -92,6 +92,9 @@ class Service(metaclass=ServiceMeta):
     def ping(self):
         return True
 
+    def pre_start(self):
+        pass
+
     def post_start_init(self):
         pass
 

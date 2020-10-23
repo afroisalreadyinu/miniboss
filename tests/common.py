@@ -33,10 +33,14 @@ class FakeService:
         self.exception_at_init = exception_at_init
         self.ping_count = 0
         self.init_called = False
+        self.pre_start_called = False
 
     def ping(self):
         self.ping_count += 1
         return not self.fail_ping
+
+    def pre_start(self):
+        self.pre_start_called = True
 
     def post_start_init(self):
         self.init_called = True

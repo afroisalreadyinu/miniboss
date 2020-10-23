@@ -141,6 +141,9 @@ new container.
 `miniboss.Service` has two methods that can be overriden in order to correctly
 change states and execute actions on the container:
 
+- **`Service.pre_start()`**: Executed before the service is started. Can be used
+  for things like initializing mount directory contents.
+
 - **`Service.ping()`**: Executed repeatedly right after the service starts with
   a 0.1 second delay between executions. If this method does not return `True`
   within a given timeout value (can be set with the `--timeout` argument,
@@ -278,7 +281,7 @@ containers are restarted or a specific service is
 - [x] Pull containers
 - [x] Integration tests
 - [x] Mounting volumes
-- [ ] pre-start lifetime event
+- [x] pre-start lifetime event
 - [ ] Running one-off containers
 - [ ] Configuration object extrapolation
 - [ ] Read specs from docker-compose.yml
