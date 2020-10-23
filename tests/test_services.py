@@ -97,6 +97,44 @@ class ServiceDefinitionTests(unittest.TestCase):
                 env = {}
                 dockerfile = 567
 
+    def test_volume_spec(self):
+        with pytest.raises(ServiceDefinitionError):
+            class NewService(Service):
+                name = "yes"
+                image = "yes"
+                volumes = ["vol1", 123]
+
+        with pytest.raises(ServiceDefinitionError):
+            class NewService(Service):
+                name = "yes"
+                image = "yes"
+                volumes = {"vol1": 123}
+
+        with pytest.raises(ServiceDefinitionError):
+            class NewService(Service):
+                name = "yes"
+                image = "yes"
+                volumes = {"vol1": {'key': 'value'}}
+
+        with pytest.raises(ServiceDefinitionError):
+            class NewService(Service):
+                name = "yes"
+                image = "yes"
+                volumes = {"vol1": {'bind': 12345}}
+
+
+    def test_volume_def_to_binds(self):
+        class NewService(Service):
+            name = "yes"
+            image = "yes"
+            volumes = {"/home/user/temp": {'bind': "/mnt/vol1", "mode": "ro"}}
+        assert NewService().volume_def_to_binds() == ["/mnt/vol1"]
+
+        class NewService(Service):
+            name = "yes"
+            image = "yes"
+            volumes = ["/tmp/dir1:/mnt/vol1", "/tmp/dir2:/mnt/vol2:ro"]
+        assert NewService().volume_def_to_binds() == ["/mnt/vol1", "/mnt/vol2"]
 
 
 class ConnectServicesTests(unittest.TestCase):

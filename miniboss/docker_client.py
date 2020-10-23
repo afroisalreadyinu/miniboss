@@ -93,9 +93,10 @@ class DockerClient:
                                network_name):
         container_name = "{:s}-{:s}".format(name_prefix, ''.join(random.sample(DIGITS, 4)))
         networking_config = self.lib_client.api.create_networking_config({
-            network_name: self.lib_client.api.create_endpoint_config(aliases=[service.name])
+            network_name: self.lib_client.api.create_endpoint_config(aliases=[service.name]),
         })
-        host_config=self.lib_client.api.create_host_config(port_bindings=service.ports)
+        host_config=self.lib_client.api.create_host_config(port_bindings=service.ports,
+                                                           binds=service.volumes)
         self.check_image(service.image)
         try:
             container = self.lib_client.api.create_container(
@@ -106,6 +107,7 @@ class DockerClient:
                 environment=service.env,
                 host_config=host_config,
                 networking_config=networking_config,
+                volumes=service.volume_def_to_binds(),
                 stop_signal=service.stop_signal)
         except docker.errors.ImageNotFound:
             msg = "Image {:s} could not be found; please make sure it exists".format(service.image)

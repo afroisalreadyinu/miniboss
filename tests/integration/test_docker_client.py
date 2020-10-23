@@ -1,6 +1,7 @@
 import os
 import unittest
 import tempfile
+import uuid
 
 import docker
 import docker.errors
@@ -85,6 +86,54 @@ class DockerClientTests(unittest.TestCase):
         network = lib_client.networks.get('miniboss-test-network')
         assert len(network.containers) == 1
         assert network.containers[0].name == container_name
+
+
+    def test_run_service_volume_mount(self):
+        client = DockerClient.get_client()
+        client.create_network('miniboss-test-network')
+        self.network_cleanup.append('miniboss-test-network')
+        #----------------------------
+        context = tempfile.mkdtemp()
+        with open(os.path.join(context, 'Dockerfile'), 'w') as dockerfile:
+            dockerfile.write("""FROM python:3.7
+WORKDIR /app
+RUN pip install flask
+COPY app.py .
+CMD ["python3", "app.py"]""")
+        with open(os.path.join(context, 'app.py'), 'w') as app_file:
+            app_file.write("""
+from flask import Flask
+app = Flask('the-app')
+
+@app.route("/")
+def index():
+    with open("/mnt/volume1/key.txt", 'r') as key_file:
+        retval = key_file.read()
+    return retval
+
+app.run(host='0.0.0.0', port=8080)
+""")
+        lib_client = get_lib_client()
+        lib_client.images.build(path=context, tag="mounted-container")
+        self.image_cleanup.append("mounted-container")
+        #----------------------------
+        mount_dir = tempfile.mkdtemp()
+        key = str(uuid.uuid4())
+        with open(os.path.join(mount_dir, 'key.txt'), 'w') as keyfile:
+            keyfile.write(key)
+        class TestService(miniboss.Service):
+            name = 'test-service'
+            image = 'mounted-container'
+            ports = {8080: 8080}
+            volumes = {mount_dir: {'bind': '/mnt/volume1', 'mode': 'ro'}}
+        service = TestService()
+        container_name = client.run_service_on_network('miniboss-test-service',
+                                                       service,
+                                                       'miniboss-test-network')
+        self.container_cleanup.append(container_name)
+        resp = requests.get('http://localhost:8080')
+        assert resp.status_code == 200
+        assert resp.text == key
 
 
     def test_check_image_invalid_url(self):

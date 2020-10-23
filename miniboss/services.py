@@ -22,6 +22,7 @@ ALLOWED_STOP_SIGNALS = ["SIGINT", "SIGTERM", "SIGKILL", "SIGQUIT"]
 
 
 class ServiceMeta(type):
+    # pylint: disable=too-many-branches
     def __new__(cls, name, bases, attrdict):
         if not bases:
             return super().__new__(cls, name, bases, attrdict)
@@ -57,6 +58,21 @@ class ServiceMeta(type):
             if signal_name not in ALLOWED_STOP_SIGNALS:
                 raise ServiceDefinitionError(
                     "Stop signal not allowed: {:s}".format(signal_name))
+        if "volumes" in attrdict:
+            volumes = attrdict["volumes"]
+            if isinstance(volumes, list):
+                if not all(isinstance(x, str) for x in volumes):
+                    raise ServiceDefinitionError(
+                        "Volumes have to be defined either as a list of strings or a dict")
+            elif isinstance(volumes, dict):
+                if not all(isinstance(x, str) for x in volumes.keys()):
+                    raise ServiceDefinitionError("Volume definition keys have to be strings")
+                for volume in volumes.values():
+                    if not isinstance(volume, dict):
+                        raise ServiceDefinitionError("Volume definition values have to be dicts")
+                    if not isinstance(volume.get('bind'), str):
+                        raise ServiceDefinitionError(
+                            "Volume definitions have to specify 'bind' key")
         return super().__new__(cls, name, bases, attrdict)
 
 
@@ -70,6 +86,7 @@ class Service(metaclass=ServiceMeta):
     stop_signal = "SIGTERM"
     build_from_directory = None
     dockerfile = "Dockerfile"
+    volumes = {}
 
     # pylint: disable=no-self-use
     def ping(self):
@@ -83,6 +100,11 @@ class Service(metaclass=ServiceMeta):
 
     def __eq__(self, other):
         return self.__class__ == other.__class__ and self.name == other.name
+
+    def volume_def_to_binds(self):
+        if isinstance(self.volumes, dict):
+            return [x['bind'] for x in self.volumes.values()]
+        return [x.split(':')[1] for x in self.volumes]
 
 def connect_services(services):
     name_counter = Counter()

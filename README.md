@@ -248,6 +248,14 @@ containers are restarted or a specific service is
     host. See [Ports and hosts](#ports-and-hosts) for more details on
     networking.
 
+- **`volumes`**: Directories to be mounted inside the servicesas a volume, and
+  the mount points. The value can be either a list of strings, in the format
+  `"directory:mount_point:mode"`, or in the dictionary format `{directory:
+  {"bind": mount_point, "mode": mode}}`. In both cases, `mode` is optional. See
+  the [Using
+  volumes](https://docker-py.readthedocs.io/en/stable/api.html#docker.api.container.ContainerApiMixin.create_container)
+  section of Python SDK documentation for details.
+
 - **`always_start_new`**: Whether to create a new container each time a service is
     started or restart an existing but stopped container. Default value is
     `False`, meaning that by default existing container will be restarted.
