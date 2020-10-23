@@ -276,8 +276,8 @@ containers are restarted or a specific service is
 
 - [x] Add linting
 - [x] Pull containers
-- [ ] Integration tests
-- [ ] Mounting volumes
+- [x] Integration tests
+- [x] Mounting volumes
 - [ ] pre-start lifetime event
 - [ ] Running one-off containers
 - [ ] Configuration object extrapolation
