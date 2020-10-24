@@ -42,7 +42,7 @@ class FakeService:
     def pre_start(self):
         self.pre_start_called = True
 
-    def post_start_init(self):
+    def post_start(self):
         self.init_called = True
         if self.exception_at_init:
             raise self.exception_at_init()

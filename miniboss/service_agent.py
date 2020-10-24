@@ -179,7 +179,7 @@ class ServiceAgent(threading.Thread):
                     self.context.service_failed(self.service)
                     return
             if run_condition == RunCondition.CREATED:
-                self.service.post_start_init()
+                self.service.post_start()
         except Exception: # pylint: disable=broad-except
             logger.exception("Error starting service")
             self.status = AgentStatus.FAILED

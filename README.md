@@ -151,12 +151,12 @@ change states and execute actions on the container:
   in this method will be propagated, and also cause the service to fail. If
   there is already a service instance running, it is not pinged.
 
-- **`Service.post_start_init()`**: This method is executed after a successful
-  `ping`. It can be used to prime a service by e.g. creating data on it, or
-  bringing it to a certain state. You can also use the global context in this
-  method; see [The global context](#the-global-context) for details. If there is
-  already a service running, or an existing container image is started insted of
-  creating a new one, this method is not called.
+- **`Service.post_start()`**: This method is executed after a successful `ping`.
+  It can be used to prime a service by e.g. creating data on it, or bringing it
+  to a certain state. You can also use the global context in this method; see
+  [The global context](#the-global-context) for details. If there is already a
+  service running, or an existing container image is started insted of creating
+  a new one, this method is not called.
 
 Both of these methods do nothing by default. A service is not registered as
 properly started before both of these lifecycle methods are processed
@@ -210,12 +210,11 @@ instances.
 
 The object `miniboss.Context`, derived from the standard dict, can be used to
 store values that are accessible to other service definitions, especially in the
-`env` field. For example, if you create a user in the `post_start_init` method
-of a service, and would like to make the ID of this user available to a
-dependant service, you can set it on the context with `Context['user_id'] =
-user.id`. In the definition of the second service, you can refer to this value
-in a field with the standard Python keyword formatting syntax, as in the
-following:
+`env` field. For example, if you create a user in the `post_start` method of a
+service, and would like to make the ID of this user available to a dependant
+service, you can set it on the context with `Context['user_id'] = user.id`. In
+the definition of the second service, you can refer to this value in a field
+with the standard Python keyword formatting syntax, as in the following:
 
 ```python
 class DependantService(miniboss.Service):

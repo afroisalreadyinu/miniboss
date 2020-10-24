@@ -95,7 +95,7 @@ class Service(metaclass=ServiceMeta):
     def pre_start(self):
         pass
 
-    def post_start_init(self):
+    def post_start(self):
         pass
 
     def __hash__(self):
