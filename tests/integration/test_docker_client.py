@@ -12,6 +12,7 @@ import pytest
 import miniboss
 from miniboss.docker_client import DockerClient
 from miniboss import exceptions
+from miniboss.types import Network
 
 _lib_client = None
 
@@ -76,7 +77,7 @@ class DockerClientTests(unittest.TestCase):
         service = TestService()
         container_name = client.run_service_on_network('miniboss-test-service',
                                                        service,
-                                                       'miniboss-test-network')
+                                                       Network('miniboss-test-network', ""))
         self.container_cleanup.append(container_name)
         resp = requests.get('http://localhost:8085')
         assert resp.status_code == 200
@@ -129,7 +130,7 @@ app.run(host='0.0.0.0', port=8080)
         service = TestService()
         container_name = client.run_service_on_network('miniboss-test-service',
                                                        service,
-                                                       'miniboss-test-network')
+                                                       Network('miniboss-test-network', ""))
         self.container_cleanup.append(container_name)
         resp = requests.get('http://localhost:8080')
         assert resp.status_code == 200
@@ -186,7 +187,7 @@ COPY index.html /usr/share/nginx/html""")
         service = TestService()
         container_name = client.run_service_on_network('miniboss-test-service',
                                                        service,
-                                                       'miniboss-test-network')
+                                                       Network('miniboss-test-network', ""))
         self.container_cleanup.append(container_name)
         resp = requests.get('http://localhost:8085')
         assert resp.status_code == 200
@@ -225,7 +226,7 @@ CMD ["/fail.sh"]""")
         with pytest.raises(exceptions.ContainerStartException) as exception_context:
             client.run_service_on_network('miniboss-failing-service',
                                           service,
-                                          'miniboss-test-network')
+                                          Network('miniboss-test-network', ""))
         exception = exception_context.value
         self.container_cleanup.append(exception.container_name)
         assert exception.logs == "Going down\n"

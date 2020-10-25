@@ -3,37 +3,13 @@ import threading
 import time
 from datetime import datetime
 import logging
-from typing import NamedTuple
 
 from miniboss.docker_client import DockerClient
 from miniboss.context import Context
+from miniboss.types import AgentStatus, RunCondition, Actions, Options
 from miniboss.exceptions import ServiceAgentException
 
 logger = logging.getLogger(__name__)
-
-# pylint: disable=inherit-non-class
-class Options(NamedTuple):
-    network_name: str
-    timeout: int
-    run_new_containers: bool
-    remove: bool
-    run_dir: str
-
-class AgentStatus:
-    NULL = 'null'
-    IN_PROGRESS = 'in-progress'
-    STARTED = 'started'
-    FAILED = 'failed'
-    STOPPED = 'stopped'
-
-class RunCondition:
-    CREATED = 'created'
-    STARTED = 'started'
-    ALREADY_RUNNING = 'already-running'
-
-class Actions:
-    START = 'start'
-    STOP = 'stop'
 
 def container_env(container):
     env = container.attrs['Config']['Env']
@@ -107,7 +83,7 @@ class ServiceAgent(threading.Thread):
         # If there are any running with the name prefix, connected to the same
         # network, skip creating
         existings = client.existing_on_network(self.container_name_prefix,
-                                               self.options.network_name)
+                                               self.options.network)
         if existings:
             # pylint: disable=fixme
             # TODO fix this; it should be able to deal with multiple existing
@@ -136,7 +112,7 @@ class ServiceAgent(threading.Thread):
         logger.info("Creating new container for service %s", self.service.name)
         client.run_service_on_network(self.container_name_prefix,
                                       self.service,
-                                      self.options.network_name)
+                                      self.options.network)
         return RunCondition.CREATED
 
 
@@ -192,7 +168,7 @@ class ServiceAgent(threading.Thread):
     def stop_container(self):
         client = DockerClient.get_client()
         existings = client.existing_on_network(self.container_name_prefix,
-                                               self.options.network_name)
+                                               self.options.network)
         if not existings:
             logging.info("No containers to stop for %s", self.service.name)
         for existing in existings:

@@ -14,12 +14,13 @@ from miniboss.services import (connect_services,
                                ServiceCollection,
                                ServiceDefinitionError)
 
-from miniboss.service_agent import Options, ServiceAgent
+from miniboss.service_agent import ServiceAgent
+from miniboss.types import Options, Network
 from miniboss import services, service_agent, Context
 
 from common import FakeDocker, FakeContainer
 
-DEFAULT_OPTIONS = Options('the-network', 50, False, False, "/etc")
+DEFAULT_OPTIONS = Options(Network('the-network', 'the-network-id'), 50, False, False, "/etc")
 
 class ServiceDefinitionTests(unittest.TestCase):
 
@@ -172,7 +173,7 @@ class ConnectServicesTests(unittest.TestCase):
 class ServiceCollectionTests(unittest.TestCase):
 
     def setUp(self):
-        self.docker = FakeDocker.Instance = FakeDocker()
+        self.docker = FakeDocker.Instance = FakeDocker({'the-network': 'the-network-id'})
         services.DockerClient = self.docker
         service_agent.DockerClient = self.docker
 
@@ -530,7 +531,8 @@ class ServiceCollectionTests(unittest.TestCase):
 
         collection._base_class = NewServiceBase
         collection.load_definitions()
-        collection.stop_all(Options('the-network', 50, False, True, "/etc"))
+        collection.stop_all(Options(Network('the-network', 'the-network-id'),
+                                    50, False, True, "/etc"))
         assert container1.stopped
         assert container1.removed_at is not None
         assert container2.stopped
@@ -565,7 +567,8 @@ class ServiceCollectionTests(unittest.TestCase):
         collection._base_class = NewServiceBase
         collection.load_definitions()
         collection.exclude_for_stop(['service2'])
-        collection.stop_all(Options('the-network', 50, False, True, '/etc'))
+        collection.stop_all(Options(Network('the-network', 'the-network-id'),
+                                    50, False, True, '/etc'))
         assert container1.stopped
         assert container1.removed_at is not None
         # service2 was excluded
@@ -643,7 +646,7 @@ class ServiceCollectionTests(unittest.TestCase):
 class ServiceCommandTests(unittest.TestCase):
 
     def setUp(self):
-        self.docker = FakeDocker.Instance = FakeDocker()
+        self.docker = FakeDocker.Instance = FakeDocker({'miniboss': 'minibos-network-id'})
         services.DockerClient = self.docker
         class MockServiceCollection:
             def load_definitions(self):
@@ -699,7 +702,7 @@ class ServiceCommandTests(unittest.TestCase):
 
     def test_stop_services(self):
         services.stop_services('/tmp', ['test'], "miniboss", False, 50)
-        assert self.collection.options.network_name == 'miniboss'
+        assert self.collection.options.network.name == 'miniboss'
         assert self.collection.options.timeout == 50
         assert self.collection.options.run_dir == '/tmp'
         assert not self.collection.options.remove
@@ -719,7 +722,7 @@ class ServiceCommandTests(unittest.TestCase):
         services.reload_service('/tmp', 'the-service', "miniboss", False, 50, False)
         assert self.collection.checked_can_be_built == 'the-service'
         assert self.collection.updated_for_base_service == 'the-service'
-        assert self.collection.options.network_name == 'miniboss'
+        assert self.collection.options.network.name == 'miniboss'
         assert self.collection.options.timeout == 50
         assert self.collection.options.run_dir == '/tmp'
         assert self.collection.built == 'the-service'

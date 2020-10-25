@@ -8,19 +8,19 @@ import pytest
 from miniboss import service_agent, context
 from miniboss.services import connect_services
 from miniboss.service_agent import (ServiceAgent,
-                                    Options,
                                     AgentStatus,
                                     Actions,
                                     ServiceAgentException)
+from miniboss.types import Options, Network
 
 from common import FakeDocker, FakeService, FakeRunningContext, FakeContainer
 
-DEFAULT_OPTIONS = Options('the-network', 1, False, False, '/etc')
+DEFAULT_OPTIONS = Options(Network('the-network', 'the-network-id'), 1, False, False, '/etc')
 
 class ServiceAgentTests(unittest.TestCase):
 
     def setUp(self):
-        self.docker = FakeDocker.Instance = FakeDocker()
+        self.docker = FakeDocker.Instance = FakeDocker({'the-network': 'the-network-id'})
         service_agent.DockerClient = self.docker
 
 
@@ -65,11 +65,11 @@ class ServiceAgentTests(unittest.TestCase):
         agent = ServiceAgent(FakeService(), DEFAULT_OPTIONS, None)
         agent.run_image()
         assert len(self.docker._services_started) == 1
-        prefix, service, network_name = self.docker._services_started[0]
+        prefix, service, network = self.docker._services_started[0]
         assert prefix == "service1-miniboss"
         assert service.name == 'service1'
         assert service.image == 'not/used'
-        assert network_name == 'the-network'
+        assert network.name == 'the-network'
 
 
     def test_run_image_extrapolate_env(self):
@@ -119,7 +119,8 @@ class ServiceAgentTests(unittest.TestCase):
         agent.run_image()
         assert len(self.docker._services_started) == 0
         assert len(self.docker._existing_queried) == 1
-        assert self.docker._existing_queried[0] == ("service1-miniboss", "the-network")
+        assert self.docker._existing_queried[0] == ("service1-miniboss",
+                                                    Network("the-network", "the-network-id"))
 
 
     def test_start_old_container_if_exists(self):
@@ -147,11 +148,11 @@ class ServiceAgentTests(unittest.TestCase):
                                                   name="{}-miniboss-123".format(service.name))]
         agent.run_image()
         assert len(self.docker._services_started) == 1
-        prefix, service, network_name = self.docker._services_started[0]
+        prefix, service, network = self.docker._services_started[0]
         assert prefix == "service1-miniboss"
         assert service.name == 'service1'
         assert service.image == 'not/used'
-        assert network_name == 'the-network'
+        assert network.name == 'the-network'
         assert self.docker._containers_ran == []
 
 
@@ -167,17 +168,18 @@ class ServiceAgentTests(unittest.TestCase):
                                                   name="{}-miniboss-123".format(service.name))]
         agent.run_image()
         assert len(self.docker._services_started) == 1
-        prefix, service, network_name = self.docker._services_started[0]
+        prefix, service, network = self.docker._services_started[0]
         assert prefix == "service1-miniboss"
         assert service.name == 'service1'
         assert service.image == 'not/used'
-        assert network_name == 'the-network'
+        assert network.name == 'the-network'
         assert self.docker._containers_ran == []
 
 
     def test_start_new_if_run_new_containers(self):
         service = FakeService()
-        agent = ServiceAgent(service, Options('the-network', 1, True, False, '/etc'), None)
+        agent = ServiceAgent(service, Options(Network('the-network', 'the-network-id'),
+                                              1, True, False, '/etc'), None)
         restarted = False
         def start():
             nonlocal restarted
@@ -195,7 +197,8 @@ class ServiceAgentTests(unittest.TestCase):
     def test_start_new_if_always_start_new(self):
         service = FakeService()
         service.always_start_new = True
-        agent = ServiceAgent(service, Options('the-network', 1, True, False, '/etc'), None)
+        agent = ServiceAgent(service, Options(Network('the-network', 'the-network-id'),
+                                              1, True, False, '/etc'), None)
         restarted = False
         def start():
             nonlocal restarted
@@ -235,7 +238,9 @@ class ServiceAgentTests(unittest.TestCase):
     def test_no_ping_or_init_if_running(self):
         service = FakeService()
         fake_context = FakeRunningContext()
-        agent = ServiceAgent(service, Options('the-network', 1, True, False, '/etc'), fake_context)
+        agent = ServiceAgent(service, Options(Network('the-network', 'the-network-id'),
+                                              1, True, False, '/etc'),
+                             fake_context)
         self.docker._existing_containers = [Bunch(status='running',
                                                   network='the-network',
                                                   name="{}-miniboss-123".format(service.name))]

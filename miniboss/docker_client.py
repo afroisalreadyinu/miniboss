@@ -6,6 +6,7 @@ import docker
 import docker.errors
 
 from miniboss.exceptions import DockerException, ContainerStartException
+from miniboss.types import Network
 
 logger = logging.getLogger(__name__)
 
@@ -41,8 +42,8 @@ class DockerClient:
             logging.info("Removed network %s", network_name)
 
 
-    def existing_on_network(self, name, network_name):
-        return self.lib_client.containers.list(all=True, filters={'network': network_name,
+    def existing_on_network(self, name, network: Network):
+        return self.lib_client.containers.list(all=True, filters={'network': network.id,
                                                                   'name': name})
 
     def build_image(self, build_dir, dockerfile, image_tag):
@@ -90,10 +91,10 @@ class DockerClient:
     def run_service_on_network(self,
                                name_prefix,
                                service,  # service: services.Service
-                               network_name):
+                               network: Network):
         container_name = "{:s}-{:s}".format(name_prefix, ''.join(random.sample(DIGITS, 4)))
         networking_config = self.lib_client.api.create_networking_config({
-            network_name: self.lib_client.api.create_endpoint_config(aliases=[service.name]),
+            network.name: self.lib_client.api.create_endpoint_config(aliases=[service.name]),
         })
         host_config=self.lib_client.api.create_host_config(port_bindings=service.ports,
                                                            binds=service.volumes)

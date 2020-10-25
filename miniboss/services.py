@@ -4,7 +4,7 @@ from collections import Counter, deque
 from collections.abc import Mapping
 
 from miniboss.docker_client import DockerClient
-from miniboss.service_agent import Options
+from miniboss.types import Options, Network
 from miniboss.running_context import RunningContext
 from miniboss.context import Context
 from miniboss.exceptions import ServiceLoadError, ServiceDefinitionError
@@ -220,7 +220,7 @@ class ServiceCollection:
                 agent.stop_service()
             time.sleep(0.01)
         if options.remove and not self.excluded:
-            docker.remove_network(options.network_name)
+            docker.remove_network(options.network.name)
 
 
     def update_for_base_service(self, service_name):
@@ -245,8 +245,9 @@ def start_services(maindir, run_new_containers, exclude, network_name, timeout):
     collection = ServiceCollection()
     collection.load_definitions()
     collection.exclude_for_start(exclude)
-    docker.create_network(network_name)
-    options = Options(network_name, timeout, run_new_containers, False, maindir)
+    network = docker.create_network(network_name)
+    options = Options(Network(network_name, network.id),
+                      timeout, run_new_containers, False, maindir)
     service_names = collection.start_all(options)
     logger.info("Started services: %s", ", ".join(service_names))
     Context.save_to(maindir)
@@ -254,7 +255,7 @@ def start_services(maindir, run_new_containers, exclude, network_name, timeout):
 
 def stop_services(maindir, exclude, network_name, remove, timeout):
     logger.info("Stopping services (excluded: %s)", "none" if not exclude else ",".join(exclude))
-    options = Options(network_name, timeout, False, remove, maindir)
+    options = Options(Network(network_name, ""), timeout, False, remove, maindir)
     collection = ServiceCollection()
     collection.load_definitions()
     collection.exclude_for_stop(exclude)
@@ -264,7 +265,7 @@ def stop_services(maindir, exclude, network_name, remove, timeout):
 
 # pylint: disable=too-many-arguments
 def reload_service(maindir, service, network_name, remove, timeout, run_new_containers):
-    options = Options(network_name, timeout, remove, run_new_containers, maindir)
+    options = Options(Network(network_name, ""), timeout, remove, run_new_containers, maindir)
     stop_collection = ServiceCollection()
     stop_collection.load_definitions()
     stop_collection.check_can_be_built(service)
