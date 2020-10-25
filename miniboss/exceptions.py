@@ -24,3 +24,6 @@ class ContainerStartException(DockerException):
         self.logs = logs
         self.container_name = container_name
         super().__init__(*args, **kwargs)
+
+    def __str__(self):
+        return "Logs: \n" + self.logs
