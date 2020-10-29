@@ -176,8 +176,8 @@ class ServiceAgent(threading.Thread):
                 existing.stop(timeout=self.options.timeout)
                 logging.info("Stopped container %s", existing.name)
             if self.options.remove:
-                logging.info("Removed container %s", existing.name)
                 existing.remove()
+                logging.info("Removed container %s", existing.name)
         # If there were no exceptions, just mark it as stopped
         self.status = AgentStatus.STOPPED
         self.context.service_stopped(self.service)

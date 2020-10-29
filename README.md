@@ -56,7 +56,7 @@ if __name__ == "__main__":
 
 A **service** is defined by subclassing `miniboss.Service` and overriding, in
 the minimal case, the fields `image` and `name`. The `env` field specifies the
-enviornment variables; as in the case of the `appdb` service, you can use
+environment variables; as in the case of the `appdb` service, you can use
 ordinary variables in this and any other value. The other available fields are
 explained in the section [Service definition
 fields](#service-definition-fields). Here, we are creating two services: The
@@ -65,9 +65,9 @@ the `sample-apps` directory) depends on `appdb` (a Postgresql container),
 specified through the `dependencies` field. As in `docker-compose`, this means
 that `python-todo` will get started after `appdb` reaches running status.
 
-The `miniboss.cli` function is the main entry point; you need to execute it
-in the main routine of your scirpt. Let's run this script without arguments,
-which leads to the following output:
+The `miniboss.cli` function is the main entry point; you need to call it in the
+main section of your script. Let's run the script above without arguments, which
+leads to the following output:
 
 ```
 Usage: miniboss-main.py [OPTIONS] COMMAND [ARGS]...
@@ -102,20 +102,25 @@ are registered as failed.
 
 ### Stopping services
 
-Once you are done working, you can stop the running services with
-`miniboss-main.py stop`. This will stop the services in the reverse order of
-dependency, i.e. first `python-todo` and then `appdb`. Exclusion is possible
-also when stopping services with the same `--exclude` argument. Running
-`./miniboss-main.py stop --exclude appdb` will stop only the `python-todo`
-service. If you exclude a service whose dependency will be stopped, you will get
-an error.
+Once you are done working with a container cluster, you can stop the running
+services with `miniboss-main.py stop`. This will stop the services in the
+reverse order of dependency, i.e. first `python-todo` and then `appdb`.
+Exclusion is possible also when stopping services with the same `--exclude`
+argument. Running `./miniboss-main.py stop --exclude appdb` will stop only the
+`python-todo` service. If you exclude a service whose dependency will be
+stopped, you will get an error. If, in addition to stopping the service
+containers, you want remove them, include the option `--remove`. If you don't
+remove the containers, miniboss will restart the existing containers (modulo
+certain conditions) instead of creating new ones the next time it's called with
+`start`. This behavior can be modified with the `always_start_new` field; see
+the details in [Service definition fields](#service-definition-fields).
 
 ### Reloading a service
 
 miniboss also allows you to reload a specific service by building a new
 container image from a directory. You need to provide the path to the directory
-in which the Dockerfile and code of a service resides in order to use this
-feature. You can also provide an alternative Dockerfile name. Here is an
+in which the Dockerfile and build context of a service resides in order to use
+this feature. You can also provide an alternative Dockerfile name. Here is an
 example:
 
 ```
@@ -131,15 +136,17 @@ class Application(miniboss.Service):
 
 The `build_from_directory` option has to be a path relative to the main miniboss
 file. With such a service configuration, you can run `./miniboss-main.py reload
-python-todo`, which will build the container image, stop the running service
-container, and restart the new image. Since [the context](#the-global-context)
-generated at start is saved in a file, these context values are available to the
-new container.
+python-todo`, which will cause miniboss to build the container image, stop the
+running service container, and restart the new image. Since [the
+context](#the-global-context) generated at start is saved in a file, any context
+values used in the service definition are available to the new container.
 
 ## Lifecycle events
 
-`miniboss.Service` has two methods that can be overriden in order to correctly
-change states and execute actions on the container:
+One of the differentiating feature of miniboss is lifecycle events, which are
+hooks that can be customized to execute code at certain points in a service's
+lifecycle. `miniboss.Service` has two methods that can be overriden in order to
+correctly change states and execute actions on the container:
 
 - **`Service.pre_start()`**: Executed before the service is started. Can be used
   for things like initializing mount directory contents.
@@ -158,9 +165,9 @@ change states and execute actions on the container:
   service running, or an existing container image is started insted of creating
   a new one, this method is not called.
 
-Both of these methods do nothing by default. A service is not registered as
-properly started before both of these lifecycle methods are processed
-successfully; only then are the dependant services started.
+These methods are [noop](https://en.wikipedia.org/wiki/NOP_(code)) by default. A
+service is not registered as properly started before lifecycle methods are
+executed successfully; only then are the dependant services started.
 
 The `ping` method is particularly useful if you want to avoid the situation
 described above, where a container starts, but the main process has not
@@ -193,25 +200,25 @@ executed on the host computer. The next section explains the details.
 ## Ports and hosts
 
 miniboss starts services on an isolated bridge network, mapping no ports by
-default. On this network, services can contact each other on the ports that the
-applications are listening on. The `appdb` Postgresql service above, for
-example, can be contacted on the port 5432, the default port on which Postgresql
-listens. This is the reason the host part of the `DB_URI` environment variable
-on the `python-todo` service is `appdb:5432`. If you want to reach `appdb` on
-the port `5432` from the host system, which would be necessary to implement the
-ping method, you need to make this mapping explicit with the `ports` field of
-the service definition. This field accepts a dictionary of int keys and int
-values. The key is the service container port, and the value is the host port.
-In the case of `appdb`, the Postgresql port of the container is mapped to port
-5433 on the local machine, in order not to collide with any local Postgresql
-instances.
+default. On this network, services can be contacted under the service name as
+hostname, on the ports they are listening on. The `appdb` Postgresql service
+above, for example, can be contacted on the port 5432, the default port on which
+Postgresql listens. This is the reason the host part of the `DB_URI` environment
+variable on the `python-todo` service is `appdb:5432`. If you want to reach
+`appdb` on the port `5433` from the host system, which would be necessary to
+implement the `ping` method as above, you need to make this mapping explicit
+with the `ports` field of the service definition. This field accepts a
+dictionary of integer keys and values. The key is the service container port,
+and the value is the host port. In the case of `appdb`, the Postgresql port of
+the container is mapped to port 5433 on the local machine, in order not to
+collide with any local Postgresql instances.
 
 ### The global context
 
-The object `miniboss.Context`, derived from the standard dict, can be used to
-store values that are accessible to other service definitions, especially in the
-`env` field. For example, if you create a user in the `post_start` method of a
-service, and would like to make the ID of this user available to a dependant
+The object `miniboss.Context`, derived from the standard dict class, can be used
+to store values that are accessible to other service definitions, especially in
+the `env` field. For example, if you create a user in the `post_start` method of
+a service, and would like to make the ID of this user available to a dependant
 service, you can set it on the context with `Context['user_id'] = user.id`. In
 the definition of the second service, you can refer to this value in a field
 with the standard Python keyword formatting syntax, as in the following:
@@ -232,44 +239,44 @@ containers are restarted or a specific service is
 
 ## Service definition fields
 
-- **`name`**: The name of the service. Must be non-empty and unique. The
-    container can be contacted on the network under this name; must therefore be
-    a valid hostname.
+- **`name`**: The name of the service. Must be non-empty and unique for one
+  miniboss definition module. The container can be contacted on the network
+  under this name; it must therefore be a valid hostname.
 
-- **`image`**: Container image of the service. Must be non-empty.
+- **`image`**: Container image of the service. Must be non-empty. You can use a
+  repository URL here; if the image is not locally available, it will be pulled.
 
 - **`dependencies`**: A list of the dependencies of a service by name. If there
-    are any invalid or circular dependencies, an error will be raised.
+  are any invalid or circular dependencies, an error will be raised.
 
-- **`env`**: Environment variables to be injected into the service container, as a
-    dict. The values of this dict can contain extrapolations from the global
-    context; these extrapolations are executed when the service starts.
+- **`env`**: Environment variables to be injected into the service container, as
+  a dict. The values of this dict can contain extrapolations from the global
+  context; these extrapolations are executed when the service starts.
 
 - **`ports`**: A mapping of the ports that must be exposed on the running host.
-    Keys are ports local to the container, values are the ports of the running
-    host. See [Ports and hosts](#ports-and-hosts) for more details on
-    networking.
+  Keys are ports local to the container, values are the ports of the running
+  host. See [Ports and hosts](#ports-and-hosts) for more details on networking.
 
-- **`volumes`**: Directories to be mounted inside the servicesas a volume, and
-  the mount points. The value can be either a list of strings, in the format
-  `"directory:mount_point:mode"`, or in the dictionary format `{directory:
-  {"bind": mount_point, "mode": mode}}`. In both cases, `mode` is optional. See
-  the [Using
+- **`volumes`**: Directories to be mounted inside the services as a volume, on
+  which mount points. The value of `volumes` can be either a list of strings, in
+  the format `"directory:mount_point:mode"`, or in the dictionary format
+  `{directory: {"bind": mount_point, "mode": mode}}`. In both cases, `mode` is
+  optional. See the [Using
   volumes](https://docker-py.readthedocs.io/en/stable/api.html#docker.api.container.ContainerApiMixin.create_container)
   section of Python SDK documentation for details.
 
-- **`always_start_new`**: Whether to create a new container each time a service is
-    started or restart an existing but stopped container. Default value is
-    `False`, meaning that by default existing container will be restarted.
+- **`always_start_new`**: Whether to create a new container each time a service
+  is started or restart an existing but stopped container. Default value is
+  `False`, meaning that by default existing container will be restarted.
 
-- **`stop_signal`**: Which stop signal Docker should use to stop the container by
-    name (not by integer value, so don't use values from the `signal` standard
-    library module here). Default is `SIGTERM`. Accepted values are `SIGINT`,
-    `SIGTERM`, `SIGKILL` and `SIGQUIT`.
+- **`stop_signal`**: Which stop signal Docker should use to stop the container,
+  by name (not by integer value, so don't use values from the `signal` standard
+  library module here). Default is `SIGTERM`. Accepted values are `SIGINT`,
+  `SIGTERM`, `SIGKILL` and `SIGQUIT`.
 
 - **`build_from_directory`**: The directory from which a service can be
-    reloaded. It should be either absolute, or relative to the main script.
-    Required if you want to reload a service.
+  reloaded. It should be either absolute, or relative to the main script.
+  Required if you want to be able to reload a service.
 
 - **`dockerfile`**: Dockerfile to use when building a service from the
   `build_from_directory`. Default is `Dockerfile`.
