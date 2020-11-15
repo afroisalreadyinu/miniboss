@@ -283,17 +283,19 @@ containers are restarted or a specific service is
 
 ## Todos
 
-- [x] Add linting
-- [x] Pull containers
-- [x] Integration tests
-- [x] Mounting volumes
-- [x] pre-start lifetime event
+- [ ] Destroy service if it cannot be started
+- [ ] Log when custom post_start is done
 - [ ] Running one-off containers
 - [ ] Configuration object extrapolation
 - [ ] Read specs from docker-compose.yml
 - [ ] Running tests once system started
 - [ ] Using context values in tests
 - [ ] Dependent test suites and setups
+- [x] Add linting (0.3.0)
+- [x] Pull containers (0.3.0)
+- [x] Integration tests (0.3.0)
+- [x] Mounting volumes (0.3.0)
+- [x] pre-start lifetime event (0.3.0)
 - [x] Bug: context values when reloading a service
 - [x] Derive exceptions from a base `MinibossException`
 - [x] Don't use existing container if env changed
