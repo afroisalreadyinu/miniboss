@@ -284,8 +284,8 @@ containers are restarted or a specific service is
 ## Todos
 
 - [x] Don't fail on start if excluded services depend on each other
-- [ ] Destroy service if it cannot be started
-- [ ] Log when custom post_start is done
+- [x] Destroy service if it cannot be started
+- [x] Log when custom post_start is done
 - [ ] Running one-off containers
 - [ ] Multiple clusters on single host
 - [ ] Configuration object extrapolation
