@@ -286,7 +286,7 @@ class ServiceAgentTests(unittest.TestCase):
         fake_context = FakeRunningContext()
         fake_service = FakeService(fail_ping=True)
         # Using options with low timeout so that test doesn't hang
-        options = Options('the-network', 0.01, True, False, '/etc')
+        options = Options(Network('the-network', 'the-network-id'), 0.01, True, False, '/etc')
         agent = ServiceAgent(fake_service, options, fake_context)
         agent.start_service()
         agent.join()
@@ -294,6 +294,27 @@ class ServiceAgentTests(unittest.TestCase):
         assert fake_context.started_services == []
         assert len(fake_context.failed_services) == 1
         assert fake_context.failed_services[0].name == 'service1'
+
+
+    def test_stop_remove_container_on_failed(self):
+        fake_context = FakeRunningContext()
+        name = 'aservice'
+        container = FakeContainer(name='{}-miniboss-5678'.format(name),
+                                  network='the-network',
+                                  status='running')
+        _context = self
+        class CrazyFakeService(FakeService):
+            def ping(self):
+                _context.docker._existing_containers = [container]
+                raise ValueError("Blah")
+        options = Options(Network('the-network', 'the-network-id'), 0.01, True, False, '/etc')
+        agent = ServiceAgent(CrazyFakeService(name=name), options, fake_context)
+        agent.start_service()
+        agent.join()
+        assert container.stopped
+        assert container.removed_at is not None
+        # This is 0 because the service wasn't stopped by the user
+        assert len(fake_context.stopped_services) == 0
 
 
     def test_call_collection_failed_on_error(self):
@@ -321,8 +342,6 @@ class ServiceAgentTests(unittest.TestCase):
         fake_context = FakeRunningContext()
         fake_service = FakeService(exception_at_init=ValueError)
         container = FakeContainer(name='{}-miniboss-5678'.format(fake_service.name),
-                                  stopped=False,
-                                  removed=False,
                                   network='the-network',
                                   status='running')
         self.docker._existing_containers = [container]

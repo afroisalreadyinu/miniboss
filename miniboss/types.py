@@ -21,6 +21,7 @@ class AgentStatus:
     STOPPED = 'stopped'
 
 class RunCondition:
+    NULL = 'null'
     CREATED = 'created'
     STARTED = 'started'
     ALREADY_RUNNING = 'already-running'

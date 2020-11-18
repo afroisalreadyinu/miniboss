@@ -145,27 +145,32 @@ class ServiceAgent(threading.Thread):
         elif self.action == Actions.STOP:
             self.stop_container()
 
+    def _fail(self, run_condition):
+        self.status = AgentStatus.FAILED
+        self.context.service_failed(self.service)
+        if run_condition in [RunCondition.CREATED, RunCondition.CREATED]:
+            self._stop_container(remove=True)
+
     def start_container(self):
+        run_condition = RunCondition.NULL
         try:
             self.service.pre_start()
             run_condition = self.run_image()
             if run_condition != RunCondition.ALREADY_RUNNING:
                 if not self.ping():
-                    self.status = AgentStatus.FAILED
-                    self.context.service_failed(self.service)
+                    self._fail(run_condition)
                     return
             if run_condition == RunCondition.CREATED:
                 self.service.post_start()
         except Exception: # pylint: disable=broad-except
             logger.exception("Error starting service")
-            self.status = AgentStatus.FAILED
-            self.context.service_failed(self.service)
+            self._fail(run_condition)
         else:
             logger.info("Service %s started successfully", self.service.name)
             self.status = AgentStatus.STARTED
             self.context.service_started(self.service)
 
-    def stop_container(self):
+    def _stop_container(self, remove):
         client = DockerClient.get_client()
         existings = client.existing_on_network(self.container_name_prefix,
                                                self.options.network)
@@ -175,9 +180,11 @@ class ServiceAgent(threading.Thread):
             if existing.status == 'running':
                 existing.stop(timeout=self.options.timeout)
                 logging.info("Stopped container %s", existing.name)
-            if self.options.remove:
+            if remove:
                 existing.remove()
                 logging.info("Removed container %s", existing.name)
-        # If there were no exceptions, just mark it as stopped
+
+    def stop_container(self):
+        self._stop_container(remove=self.options.remove)
         self.status = AgentStatus.STOPPED
         self.context.service_stopped(self.service)
