@@ -20,7 +20,7 @@ from miniboss import services, service_agent, Context
 
 from common import FakeDocker, FakeContainer
 
-DEFAULT_OPTIONS = Options(Network('the-network', 'the-network-id'), 50, False, False, "/etc")
+DEFAULT_OPTIONS = Options(Network('the-network', 'the-network-id'), 50, False, "/etc")
 
 class ServiceDefinitionTests(unittest.TestCase):
 
@@ -581,8 +581,7 @@ class ServiceCollectionTests(unittest.TestCase):
 
         collection._base_class = NewServiceBase
         collection.load_definitions()
-        collection.stop_all(Options(Network('the-network', 'the-network-id'),
-                                    50, False, True, "/etc"))
+        collection.stop_all(Options(Network('the-network', 'the-network-id'), 50, True, "/etc"))
         assert container1.stopped
         assert container1.removed_at is not None
         assert container2.stopped
@@ -617,8 +616,7 @@ class ServiceCollectionTests(unittest.TestCase):
         collection._base_class = NewServiceBase
         collection.load_definitions()
         collection.exclude_for_stop(['service2'])
-        collection.stop_all(Options(Network('the-network', 'the-network-id'),
-                                    50, False, True, '/etc'))
+        collection.stop_all(Options(Network('the-network', 'the-network-id'), 50, True, '/etc'))
         assert container1.stopped
         assert container1.removed_at is not None
         # service2 was excluded
@@ -725,19 +723,18 @@ class ServiceCommandTests(unittest.TestCase):
         Context._reset()
 
     def test_start_services_create_network(self):
-        services.start_services('/tmp', False, [], "miniboss", 50)
+        services.start_services('/tmp', [], "miniboss", 50)
         assert self.docker._networks_created == ["miniboss"]
 
     def test_start_services_exclude(self):
-        services.start_services("/tmp", True, ['blah'], "miniboss", 50)
+        services.start_services("/tmp", ['blah'], "miniboss", 50)
         assert self.collection.excluded == ['blah']
-        assert self.collection.options.run_new_containers
 
     def test_start_services_save_context(self):
         directory = tempfile.mkdtemp()
         Context['key_one'] = 'a_value'
         Context['key_two'] = 'other_value'
-        services.start_services(directory, True, [], "miniboss", 50)
+        services.start_services(directory, [], "miniboss", 50)
         with open(os.path.join(directory, ".miniboss-context"), "r") as context_file:
             context_data = json.load(context_file)
         assert context_data == {'key_one': 'a_value', 'key_two': 'other_value'}
@@ -746,7 +743,7 @@ class ServiceCommandTests(unittest.TestCase):
         directory = tempfile.mkdtemp()
         with open(os.path.join(directory, ".miniboss-context"), "w") as context_file:
             context_file.write(json.dumps({"key_one": "value_one", "key_two": "value_two"}))
-        services.start_services(directory, False, [], "miniboss", 50)
+        services.start_services(directory, [], "miniboss", 50)
         assert Context['key_one'] == 'value_one'
         assert Context['key_two'] == 'value_two'
 
@@ -769,7 +766,7 @@ class ServiceCommandTests(unittest.TestCase):
         assert not path.exists()
 
     def test_reload_service(self):
-        services.reload_service('/tmp', 'the-service', "miniboss", False, 50, False)
+        services.reload_service('/tmp', 'the-service', "miniboss", False, 50)
         assert self.collection.checked_can_be_built == 'the-service'
         assert self.collection.updated_for_base_service == 'the-service'
         assert self.collection.options.network.name == 'miniboss'
@@ -777,7 +774,6 @@ class ServiceCommandTests(unittest.TestCase):
         assert self.collection.options.run_dir == '/tmp'
         assert self.collection.built == 'the-service'
         assert not self.collection.options.remove
-        assert not self.collection.options.run_new_containers
 
 
     def test_reload_service_save_and_load_context(self):
@@ -786,7 +782,7 @@ class ServiceCommandTests(unittest.TestCase):
         with open(path, "w") as context_file:
             context_file.write(json.dumps({"key_one": "value_one",
                                            "key_two": "value_two"}))
-        services.reload_service(directory, 'the-service', "miniboss", False, 50, False)
+        services.reload_service(directory, 'the-service', "miniboss", False, 50)
         assert Context['key_one'] == 'value_one'
         assert Context['key_two'] == 'value_two'
         assert path.exists()

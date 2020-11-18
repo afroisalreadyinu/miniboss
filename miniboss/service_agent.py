@@ -100,8 +100,7 @@ class ServiceAgent(threading.Thread):
                 if differing_keys:
                     logger.info("Differing env key(s) in existing container for service %s: %s",
                                 self.service.name, ",".join(differing_keys))
-                start_new = (self.options.run_new_containers or
-                             self.service.always_start_new or
+                start_new = (self.service.always_start_new or
                              self.service.image not in existing.image.tags or
                              bool(differing_keys))
                 if not start_new:

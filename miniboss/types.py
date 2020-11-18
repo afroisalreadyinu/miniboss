@@ -9,7 +9,6 @@ class Network(NamedTuple):
 class Options(NamedTuple):
     network: Network
     timeout: int
-    run_new_containers: bool
     remove: bool
     run_dir: str
 
