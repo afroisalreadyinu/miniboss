@@ -152,6 +152,7 @@ class ServiceAgent(threading.Thread):
             self._stop_container(remove=True)
 
     def start_container(self):
+        # pylint: disable=import-outside-toplevel, cyclic-import
         from miniboss.services import Service
         run_condition = RunCondition.NULL
         try:
