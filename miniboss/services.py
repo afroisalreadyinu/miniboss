@@ -147,6 +147,8 @@ class ServiceCollection:
     def exclude_for_start(self, exclude):
         self.excluded = exclude
         for service in self.all_by_name.values():
+            if service.name in exclude:
+                continue
             excluded_deps = [dep.name for dep in service.dependencies if dep.name in exclude]
             if excluded_deps:
                 raise ServiceLoadError("{:s} is to be excluded, but {:s} depends on it".format(

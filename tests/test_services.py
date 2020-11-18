@@ -286,6 +286,33 @@ class ServiceCollectionTests(unittest.TestCase):
         with pytest.raises(ServiceLoadError):
             collection.exclude_for_start(['hello'])
 
+
+    def test_start_dependency_and_dependant_excluded(self):
+        collection = ServiceCollection()
+        class NewServiceBase(Service):
+            name = "not used"
+            image = "not used"
+        collection._base_class = NewServiceBase
+        class ServiceOne(NewServiceBase):
+            name = "hello"
+            image = "hello"
+            dependencies = ["howareyou"]
+
+        class ServiceTwo(NewServiceBase):
+            name = "goodbye"
+            image = "hello"
+            dependencies = ["hello"]
+
+        class ServiceThree(NewServiceBase):
+            name = "howareyou"
+            image = "hello"
+
+        collection.load_definitions()
+        # There shouldn't be an exception, since we are excluding both hello and
+        # goodbye
+        collection.exclude_for_start(['hello', 'goodbye'])
+
+
     def test_error_on_stop_dependency_excluded(self):
         collection = ServiceCollection()
         class NewServiceBase(Service):
@@ -309,6 +336,29 @@ class ServiceCollectionTests(unittest.TestCase):
         collection.load_definitions()
         with pytest.raises(ServiceLoadError):
             collection.exclude_for_stop(['goodbye'])
+
+
+    def test_stop_dependency_and_dependant_excluded(self):
+        collection = ServiceCollection()
+        class NewServiceBase(Service):
+            name = "not used"
+            image = "not used"
+        collection._base_class = NewServiceBase
+        class ServiceOne(NewServiceBase):
+            name = "hello"
+            image = "hello"
+            dependencies = ["howareyou"]
+
+        class ServiceTwo(NewServiceBase):
+            name = "goodbye"
+            image = "hello"
+            dependencies = ["hello"]
+
+        class ServiceThree(NewServiceBase):
+            name = "howareyou"
+            image = "hello"
+        collection.load_definitions()
+        collection.exclude_for_stop(['howareyou', 'hello'])
 
 
     def test_populate_dependants(self):
