@@ -286,8 +286,11 @@ containers are restarted or a specific service is
 - [x] Don't fail on start if excluded services depend on each other
 - [x] Destroy service if it cannot be started
 - [x] Log when custom post_start is done
+- [ ] Multiple clusters on single host with group id
+- [ ] Add stop-only command
+- [ ] Better pypi readme with release notes
+- [ ] Exporting environment values for use in shell
 - [ ] Running one-off containers
-- [ ] Multiple clusters on single host
 - [ ] Configuration object extrapolation
 - [ ] Read specs from docker-compose.yml
 - [ ] Running tests once system started
