@@ -288,6 +288,7 @@ containers are restarted or a specific service is
 - [x] Log when custom post_start is done
 - [x] Don't start new if int-string env keys don't differ
 - [ ] Don't run pre-start if container found
+- [ ] Issue with latest tag
 - [ ] Multiple clusters on single host with group id
 - [ ] Add stop-only command
 - [ ] Better pypi readme with release notes

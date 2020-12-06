@@ -153,6 +153,10 @@ class ServiceCollection:
             if excluded_deps:
                 raise ServiceLoadError("{:s} is to be excluded, but {:s} depends on it".format(
                     excluded_deps[0], service.name))
+        missing = [x for x in exclude if x not in self.all_by_name]
+        if missing:
+            raise ServiceLoadError("Service{} to be excluded, but not defined: {}".format(
+                "s" if len(missing) > 1 else "", ",".join(missing)))
         for name in exclude:
             self.all_by_name.pop(name)
 
