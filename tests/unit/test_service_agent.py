@@ -163,7 +163,7 @@ class ServiceAgentTests(unittest.TestCase):
         self.docker._existing_containers = [Bunch(status='exited',
                                                   network='the-network',
                                                   id='longass-container-id',
-                                                  image=Bunch(tags=['different-tag']),
+                                                  image=Bunch(tags=[service.image]),
                                                   attrs={'Config': {'Env': ['KEY=other-value']}},
                                                   name="{}-miniboss-123".format(service.name))]
         agent.run_image()
@@ -174,6 +174,20 @@ class ServiceAgentTests(unittest.TestCase):
         assert service.image == 'not/used'
         assert network.name == 'the-network'
         assert self.docker._containers_ran == []
+
+
+    def test_start_existing_if_differing_env_value_type_but_not_string(self):
+        service = FakeService()
+        service.env = {'KEY': 12345}
+        agent = ServiceAgent(service, DEFAULT_OPTIONS, None)
+        self.docker._existing_containers = [Bunch(status='exited',
+                                                  network='the-network',
+                                                  id='longass-container-id',
+                                                  image=Bunch(tags=[service.image]),
+                                                  attrs={'Config': {'Env': ['KEY=12345']}},
+                                                  name="{}-miniboss-123".format(service.name))]
+        agent.run_image()
+        assert len(self.docker._services_started) == 0
 
 
     def test_start_new_if_always_start_new(self):

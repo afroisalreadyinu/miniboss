@@ -19,6 +19,16 @@ def container_env(container):
         retval[key] = value
     return retval
 
+
+def differing_keys(specified, existing):
+    """Diff the two environment dictionaries, the first one being the one specified
+    in the service def, and the other of an existing container image. Only a one
+    way diff; we ignore keys in `existing` that are not in `specified`. We are
+    also converting the keys from specified to string because the values from
+    existing are always strings anyway. """
+    return [key for key,value in specified.items() if str(value) != existing.get(key)]
+
+
 class ServiceAgent(threading.Thread):
 
     def __init__(self, service, options: Options, context):
@@ -95,14 +105,13 @@ class ServiceAgent(threading.Thread):
                 return RunCondition.ALREADY_RUNNING
             if existing.status == 'exited':
                 existing_env = container_env(existing)
-                differing_keys = [key for key in self.service.env
-                                  if existing_env.get(key) != self.service.env[key]]
-                if differing_keys:
+                diff_keys = differing_keys(self.service.env, existing_env)
+                if diff_keys:
                     logger.info("Differing env key(s) in existing container for service %s: %s",
-                                self.service.name, ",".join(differing_keys))
+                                self.service.name, ",".join(diff_keys))
                 start_new = (self.service.always_start_new or
                              self.service.image not in existing.image.tags or
-                             bool(differing_keys))
+                             bool(diff_keys))
                 if not start_new:
                     logger.info("There is an existing container for %s, not creating a new one",
                                 self.service.name)

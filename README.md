@@ -286,6 +286,8 @@ containers are restarted or a specific service is
 - [x] Don't fail on start if excluded services depend on each other
 - [x] Destroy service if it cannot be started
 - [x] Log when custom post_start is done
+- [x] Don't start new if int-string env keys don't differ
+- [ ] Don't run pre-start if container found
 - [ ] Multiple clusters on single host with group id
 - [ ] Add stop-only command
 - [ ] Better pypi readme with release notes
