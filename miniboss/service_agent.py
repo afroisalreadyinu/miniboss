@@ -165,7 +165,7 @@ class ServiceAgent(threading.Thread):
         run_condition = RunCondition.NULL
         try:
             self.service.pre_start()
-            if self.service.pre_start is not Service.pre_start:
+            if self.service.pre_start.__func__ is not Service.pre_start:
                 logger.info("pre_start for service %s ran", self.service.name)
             run_condition = self.run_image()
             if run_condition != RunCondition.ALREADY_RUNNING:
@@ -174,7 +174,7 @@ class ServiceAgent(threading.Thread):
                     return
             if run_condition == RunCondition.CREATED:
                 self.service.post_start()
-                if self.service.post_start is not Service.post_start:
+                if self.service.post_start.__func__ is not Service.post_start:
                     logger.info("post_start for service %s ran", self.service.name)
         except Exception: # pylint: disable=broad-except
             logger.exception("Error starting service")

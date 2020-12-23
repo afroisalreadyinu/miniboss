@@ -104,6 +104,9 @@ class Service(metaclass=ServiceMeta):
     def __eq__(self, other):
         return self.__class__ == other.__class__ and self.name == other.name
 
+    def __repr__(self):
+        return "<miniboss.Service name: {}>".format(self.name)
+
     def volume_def_to_binds(self):
         if isinstance(self.volumes, dict):
             return [x['bind'] for x in self.volumes.values()]
