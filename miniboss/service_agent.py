@@ -163,6 +163,9 @@ class ServiceAgent(threading.Thread):
         # pylint: disable=import-outside-toplevel, cyclic-import
         from miniboss.services import Service
         run_condition = RunCondition.NULL
+        if self.service.name in self.options.build:
+            tag = self.build_image()
+            self.service.image = tag
         try:
             self.service.pre_start()
             if self.service.pre_start.__func__ is not Service.pre_start:

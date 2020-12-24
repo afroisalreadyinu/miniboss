@@ -15,7 +15,11 @@ from miniboss.types import Options, Network
 
 from common import FakeDocker, FakeService, FakeRunningContext, FakeContainer
 
-DEFAULT_OPTIONS = Options(Network('the-network', 'the-network-id'), 1, False, '/etc')
+DEFAULT_OPTIONS = Options(network=Network('the-network', 'the-network-id'),
+                          timeout=1,
+                          remove=False,
+                          run_dir='/etc',
+                          build=[])
 
 class ServiceAgentTests(unittest.TestCase):
 
@@ -194,7 +198,7 @@ class ServiceAgentTests(unittest.TestCase):
         service = FakeService()
         service.always_start_new = True
         agent = ServiceAgent(service, Options(Network('the-network', 'the-network-id'),
-                                              1, True, '/etc'), None)
+                                              1, True, '/etc', []), None)
         restarted = False
         def start():
             nonlocal restarted
@@ -207,6 +211,18 @@ class ServiceAgentTests(unittest.TestCase):
         agent.run_image()
         assert len(self.docker._services_started) == 1
         assert not restarted
+
+    def test_build_on_start(self):
+        fake_context = FakeRunningContext()
+        fake_service = FakeService()
+        fake_service.build_from_directory = "the/service/dir"
+        default_args = DEFAULT_OPTIONS._asdict()
+        default_args.pop('build')
+        options = Options(build=[fake_service.name], **default_args)
+        agent = ServiceAgent(fake_service, options, fake_context)
+        agent.start_service()
+        agent.join()
+        assert len(self.docker._images_built) == 1
 
 
     def test_pre_start_before_run(self):
@@ -235,7 +251,7 @@ class ServiceAgentTests(unittest.TestCase):
         service = FakeService()
         fake_context = FakeRunningContext()
         agent = ServiceAgent(service, Options(Network('the-network', 'the-network-id'),
-                                              1, True, '/etc'),
+                                              1, True, '/etc', []),
                              fake_context)
         self.docker._existing_containers = [Bunch(status='running',
                                                   network='the-network',
@@ -282,7 +298,7 @@ class ServiceAgentTests(unittest.TestCase):
         fake_context = FakeRunningContext()
         fake_service = FakeService(fail_ping=True)
         # Using options with low timeout so that test doesn't hang
-        options = Options(Network('the-network', 'the-network-id'), 0.01, True, '/etc')
+        options = Options(Network('the-network', 'the-network-id'), 0.01, True, '/etc', [])
         agent = ServiceAgent(fake_service, options, fake_context)
         agent.start_service()
         agent.join()
@@ -303,7 +319,7 @@ class ServiceAgentTests(unittest.TestCase):
             def ping(self):
                 _context.docker._existing_containers = [container]
                 raise ValueError("Blah")
-        options = Options(Network('the-network', 'the-network-id'), 0.01, True, '/etc')
+        options = Options(Network('the-network', 'the-network-id'), 0.01, True, '/etc', [])
         agent = ServiceAgent(CrazyFakeService(name=name), options, fake_context)
         agent.start_service()
         agent.join()

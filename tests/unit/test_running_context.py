@@ -9,7 +9,12 @@ from miniboss.types import Options, Network
 
 from common import FakeService
 
-DEFAULT_OPTIONS = Options(Network('the-network', 'the-network-id'), 50, False, '/etc')
+DEFAULT_OPTIONS = Options(network=Network('the-network', 'the-network-id'),
+                          timeout=50,
+                          remove=False,
+                          run_dir='/etc',
+                          build=[])
+
 
 class RunningContextTests(unittest.TestCase):
 

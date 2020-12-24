@@ -20,7 +20,11 @@ from miniboss import services, service_agent, Context
 
 from common import FakeDocker, FakeContainer
 
-DEFAULT_OPTIONS = Options(Network('the-network', 'the-network-id'), 50, False, "/etc")
+DEFAULT_OPTIONS = Options(network=Network('the-network', 'the-network-id'),
+                          timeout=50,
+                          remove=False,
+                          run_dir='/etc',
+                          build=[])
 
 class ServiceDefinitionTests(unittest.TestCase):
 
@@ -438,7 +442,10 @@ class ServiceCollectionTests(unittest.TestCase):
             build_from_directory = "goodbye/dir"
             dockerfile = "Dockerfile.alt"
         collection.load_definitions()
-        retval = collection.start_all(DEFAULT_OPTIONS, build='goodbye')
+        default_args = DEFAULT_OPTIONS._asdict()
+        default_args.pop('build')
+        options = Options(build=['goodbye'], **default_args)
+        retval = collection.start_all(options)
         assert len(self.docker._images_built) == 1
         build_dir, dockerfile, image_tag = self.docker._images_built[0]
         assert build_dir == "/etc/goodbye/dir"
@@ -581,7 +588,7 @@ class ServiceCollectionTests(unittest.TestCase):
 
         collection._base_class = NewServiceBase
         collection.load_definitions()
-        collection.stop_all(Options(Network('the-network', 'the-network-id'), 50, True, "/etc"))
+        collection.stop_all(Options(Network('the-network', 'the-network-id'), 50, True, "/etc", []))
         assert container1.stopped
         assert container1.removed_at is not None
         assert container2.stopped
@@ -616,7 +623,7 @@ class ServiceCollectionTests(unittest.TestCase):
         collection._base_class = NewServiceBase
         collection.load_definitions()
         collection.exclude_for_stop(['service2'])
-        collection.stop_all(Options(Network('the-network', 'the-network-id'), 50, True, '/etc'))
+        collection.stop_all(Options(Network('the-network', 'the-network-id'), 50, True, '/etc', []))
         assert container1.stopped
         assert container1.removed_at is not None
         # service2 was excluded
@@ -703,9 +710,8 @@ class ServiceCommandTests(unittest.TestCase):
                 self.excluded = exclude
             def exclude_for_stop(self, exclude):
                 self.excluded = exclude
-            def start_all(self, options, build=None):
+            def start_all(self, options):
                 self.options = options
-                self.built = build
                 return ["one", "two"]
             def stop_all(self, options):
                 self.options = options
@@ -772,7 +778,7 @@ class ServiceCommandTests(unittest.TestCase):
         assert self.collection.options.network.name == 'miniboss'
         assert self.collection.options.timeout == 50
         assert self.collection.options.run_dir == '/tmp'
-        assert self.collection.built == 'the-service'
+        assert self.collection.options.build == ['the-service']
         assert not self.collection.options.remove
 
 

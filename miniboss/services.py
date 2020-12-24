@@ -205,13 +205,10 @@ class ServiceCollection:
             msg = "Service {:s} cannot be built: No build directory specified".format(service.name)
             raise ServiceDefinitionError(msg)
 
-    def start_all(self, options: Options, build=None):
+    def start_all(self, options: Options):
         self.running_context = RunningContext(self.all_by_name, options)
         while not (self.running_context.done or self.running_context.failed_services):
             for agent in self.running_context.ready_to_start:
-                if agent.service.name == build:
-                    tag = agent.build_image()
-                    agent.service.image = tag
                 agent.start_service()
             time.sleep(0.01)
         failed = []
@@ -254,7 +251,7 @@ def start_services(maindir, exclude, network_name, timeout):
     collection.load_definitions()
     collection.exclude_for_start(exclude)
     network = docker.create_network(network_name)
-    options = Options(Network(network_name, network.id), timeout, False, maindir)
+    options = Options(Network(network_name, network.id), timeout, False, maindir, [])
     service_names = collection.start_all(options)
     logger.info("Started services: %s", ", ".join(service_names))
     Context.save_to(maindir)
@@ -262,7 +259,7 @@ def start_services(maindir, exclude, network_name, timeout):
 
 def stop_services(maindir, exclude, network_name, remove, timeout):
     logger.info("Stopping services (excluded: %s)", "none" if not exclude else ",".join(exclude))
-    options = Options(Network(network_name, ""), timeout, remove, maindir)
+    options = Options(Network(network_name, ""), timeout, remove, maindir, [])
     collection = ServiceCollection()
     collection.load_definitions()
     collection.exclude_for_stop(exclude)
@@ -272,7 +269,7 @@ def stop_services(maindir, exclude, network_name, remove, timeout):
 
 # pylint: disable=too-many-arguments
 def reload_service(maindir, service, network_name, remove, timeout):
-    options = Options(Network(network_name, ""), timeout, remove, maindir)
+    options = Options(Network(network_name, ""), timeout, remove, maindir, [service])
     stop_collection = ServiceCollection()
     stop_collection.load_definitions()
     stop_collection.check_can_be_built(service)
@@ -283,5 +280,5 @@ def reload_service(maindir, service, network_name, remove, timeout):
     Context.load_from(maindir)
     start_collection = ServiceCollection()
     start_collection.load_definitions()
-    start_collection.start_all(options, build=service)
+    start_collection.start_all(options)
     Context.save_to(maindir)
