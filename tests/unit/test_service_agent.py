@@ -8,6 +8,7 @@ import pytest
 from miniboss import service_agent, context
 from miniboss.services import connect_services
 from miniboss.service_agent import (ServiceAgent,
+                                    ServiceContainer,
                                     AgentStatus,
                                     Actions,
                                     ServiceAgentException)
@@ -15,14 +16,95 @@ from miniboss.types import Options, Network
 
 from common import FakeDocker, FakeService, FakeRunningContext, FakeContainer
 
-DEFAULT_OPTIONS = Options(Network('the-network', 'the-network-id'), 1, False, '/etc')
+DEFAULT_OPTIONS = Options(network=Network('the-network', 'the-network-id'),
+                          timeout=1,
+                          remove=False,
+                          run_dir='/etc',
+                          build=[])
 
-class ServiceAgentTests(unittest.TestCase):
+class ServiceContainerTests(unittest.TestCase):
 
     def setUp(self):
         self.docker = FakeDocker.Instance = FakeDocker({'the-network': 'the-network-id'})
         service_agent.DockerClient = self.docker
 
+    @patch("miniboss.service_agent.datetime")
+    def test_build_image(self, mock_datetime):
+        now = datetime.now()
+        mock_datetime.now.return_value = now
+        fake_service = FakeService(name='myservice')
+        fake_service.build_from_directory = "the/service/dir"
+        servcont = ServiceContainer(fake_service, DEFAULT_OPTIONS)
+        retval = servcont.build_image()
+        assert len(self.docker._images_built) == 1
+        build_dir, dockerfile, image_tag = self.docker._images_built[0]
+        assert build_dir == "/etc/the/service/dir"
+        assert dockerfile == 'Dockerfile'
+        assert image_tag == now.strftime("myservice-miniboss-%Y-%m-%d-%H%M")
+        assert retval == image_tag
+
+
+    def test_build_image_dockerfile(self):
+        fake_service = FakeService(name='myservice')
+        fake_service.dockerfile = 'Dockerfile.other'
+        fake_service.build_from_directory = "the/service/dir"
+        servcont = ServiceContainer(fake_service, DEFAULT_OPTIONS)
+        servcont.build_image()
+        assert len(self.docker._images_built) == 1
+        _, dockerfile, _ = self.docker._images_built[0]
+        assert dockerfile == 'Dockerfile.other'
+
+
+    def test_run_image(self):
+        servcont = ServiceContainer(FakeService(), DEFAULT_OPTIONS)
+        servcont.run_image()
+        assert len(self.docker._services_started) == 1
+        prefix, service, network = self.docker._services_started[0]
+        assert prefix == "service1-miniboss"
+        assert service.name == 'service1'
+        assert service.image == 'not/used'
+        assert network.name == 'the-network'
+
+
+    def test_run_image_extrapolate_env(self):
+        service = FakeService()
+        service.env = {'ENV_ONE': 'http://{host}:{port:d}'}
+        context.Context['host'] = 'zombo.com'
+        context.Context['port'] = 80
+        servcont = ServiceContainer(service, DEFAULT_OPTIONS)
+        servcont.run_image()
+        assert len(self.docker._services_started) == 1
+        _, service, _ = self.docker._services_started[0]
+        assert service.env['ENV_ONE'] == 'http://zombo.com:80'
+
+
+    def test_agent_status_change_happy_path(self):
+        class ServiceAgentTestSubclass(ServiceAgent):
+            def ping(self):
+                assert self.status == 'in-progress'
+                return super().ping()
+        agent = ServiceAgentTestSubclass(FakeService(),
+                                         DEFAULT_OPTIONS,
+                                         FakeRunningContext())
+        assert agent.status == 'null'
+        agent.start_service()
+        agent.join()
+        assert agent.status == 'started'
+
+
+    def test_agent_status_change_sad_path(self):
+        class ServiceAgentTestSubclass(ServiceAgent):
+            def ping(self):
+                assert self.status == 'in-progress'
+                raise ValueError("I failed miserably")
+        agent = ServiceAgentTestSubclass(FakeService(), DEFAULT_OPTIONS, FakeRunningContext())
+        assert agent.status == 'null'
+        agent.start_service()
+        agent.join()
+        assert agent.status == 'failed'
+
+
+class ServiceAgentTests(unittest.TestCase):
 
     def test_can_start(self):
         services = connect_services([Bunch(name='service1', dependencies=[]),
@@ -60,55 +142,6 @@ class ServiceAgentTests(unittest.TestCase):
             agent.run()
         assert len(fake_context.failed_services) == 1
         assert fake_context.failed_services[0] is service
-
-    def test_run_image(self):
-        agent = ServiceAgent(FakeService(), DEFAULT_OPTIONS, None)
-        agent.run_image()
-        assert len(self.docker._services_started) == 1
-        prefix, service, network = self.docker._services_started[0]
-        assert prefix == "service1-miniboss"
-        assert service.name == 'service1'
-        assert service.image == 'not/used'
-        assert network.name == 'the-network'
-
-
-    def test_run_image_extrapolate_env(self):
-        service = FakeService()
-        service.env = {'ENV_ONE': 'http://{host}:{port:d}'}
-        context.Context['host'] = 'zombo.com'
-        context.Context['port'] = 80
-        agent = ServiceAgent(service, DEFAULT_OPTIONS, None)
-        agent.run_image()
-        assert len(self.docker._services_started) == 1
-        _, service, _ = self.docker._services_started[0]
-        assert service.env['ENV_ONE'] == 'http://zombo.com:80'
-
-
-    def test_agent_status_change_happy_path(self):
-        class ServiceAgentTestSubclass(ServiceAgent):
-            def ping(self):
-                assert self.status == 'in-progress'
-                return super().ping()
-        agent = ServiceAgentTestSubclass(FakeService(),
-                                         DEFAULT_OPTIONS,
-                                         FakeRunningContext())
-        assert agent.status == 'null'
-        agent.start_service()
-        agent.join()
-        assert agent.status == 'started'
-
-
-    def test_agent_status_change_sad_path(self):
-        class ServiceAgentTestSubclass(ServiceAgent):
-            def ping(self):
-                assert self.status == 'in-progress'
-                raise ValueError("I failed miserably")
-        agent = ServiceAgentTestSubclass(FakeService(), DEFAULT_OPTIONS, FakeRunningContext())
-        assert agent.status == 'null'
-        agent.start_service()
-        agent.join()
-        assert agent.status == 'failed'
-
 
     def test_skip_if_running_on_same_network(self):
         service = FakeService()
@@ -348,30 +381,3 @@ class ServiceAgentTests(unittest.TestCase):
         assert container.stopped
         assert len(fake_context.stopped_services) == 1
         assert fake_context.stopped_services[0] is fake_service
-
-
-    @patch("miniboss.service_agent.datetime")
-    def test_build_image(self, mock_datetime):
-        now = datetime.now()
-        mock_datetime.now.return_value = now
-        fake_service = FakeService(name='myservice')
-        fake_service.build_from_directory = "the/service/dir"
-        agent = ServiceAgent(fake_service, DEFAULT_OPTIONS, FakeRunningContext())
-        retval = agent.build_image()
-        assert len(self.docker._images_built) == 1
-        build_dir, dockerfile, image_tag = self.docker._images_built[0]
-        assert build_dir == "/etc/the/service/dir"
-        assert dockerfile == 'Dockerfile'
-        assert image_tag == now.strftime("myservice-miniboss-%Y-%m-%d-%H%M")
-        assert retval == image_tag
-
-
-    def test_build_image_dockerfile(self):
-        fake_service = FakeService(name='myservice')
-        fake_service.dockerfile = 'Dockerfile.other'
-        fake_service.build_from_directory = "the/service/dir"
-        agent = ServiceAgent(fake_service, DEFAULT_OPTIONS, FakeRunningContext())
-        agent.build_image()
-        assert len(self.docker._images_built) == 1
-        _, dockerfile, _ = self.docker._images_built[0]
-        assert dockerfile == 'Dockerfile.other'

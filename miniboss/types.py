@@ -1,4 +1,4 @@
-from typing import NamedTuple
+from typing import NamedTuple, List
 
 # pylint: disable=inherit-non-class
 class Network(NamedTuple):
@@ -11,6 +11,7 @@ class Options(NamedTuple):
     timeout: int
     remove: bool
     run_dir: str
+    build: List[str]
 
 class AgentStatus:
     NULL = 'null'
