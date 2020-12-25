@@ -40,6 +40,7 @@ class ServiceAgent(threading.Thread):
         self.context = context
         self.open_dependencies = service.dependencies[:]
         self.open_dependants = service.dependants[:]
+        self.run_condition = RunCondition()
         self.status = AgentStatus.NULL
         self._action = None
 
@@ -84,10 +85,41 @@ class ServiceAgent(threading.Thread):
         logger.info("Building image with tag %s for service %s from directory %s",
                     image_tag, self.service.name, build_dir)
         client.build_image(build_dir, self.service.dockerfile, image_tag)
+        self.run_condition.build_image()
         return image_tag
+
+    def _start_existing(self, existings):
+        # pylint: disable=fixme
+        # TODO fix this; it should be able to deal with multiple existing
+        # containers
+        existing = existings[0]
+        if existing.status == 'running':
+            logger.info("Found running container for %s, not starting a new one",
+                        self.service.name)
+            self.run_condition.already_running()
+            return
+        client = DockerClient.get_client()
+        if existing.status == 'exited':
+            existing_env = container_env(existing)
+            diff_keys = differing_keys(self.service.env, existing_env)
+            if diff_keys:
+                logger.info("Differing env key(s) in existing container for service %s: %s",
+                            self.service.name, ",".join(diff_keys))
+            start_new = (self.service.always_start_new or
+                         self.service.image not in existing.image.tags or
+                         bool(diff_keys))
+            if not start_new:
+                logger.info("There is an existing container for %s, not creating a new one",
+                            self.service.name)
+                self.run_condition.started()
+                client.run_container(existing.id)
+                if not self.ping():
+                    self._fail()
 
 
     def run_image(self): # returns RunCondition
+        # pylint: disable=import-outside-toplevel, cyclic-import
+        from miniboss.services import Service
         client = DockerClient.get_client()
         self.service.env = Context.extrapolate_values(self.service.env)
         # If there are any running with the name prefix, connected to the same
@@ -95,40 +127,33 @@ class ServiceAgent(threading.Thread):
         existings = client.existing_on_network(self.container_name_prefix,
                                                self.options.network)
         if existings:
-            # pylint: disable=fixme
-            # TODO fix this; it should be able to deal with multiple existing
-            # containers
-            existing = existings[0]
-            if existing.status == 'running':
-                logger.info("Found running container for %s, not starting a new one",
-                            self.service.name)
-                return RunCondition.ALREADY_RUNNING
-            if existing.status == 'exited':
-                existing_env = container_env(existing)
-                diff_keys = differing_keys(self.service.env, existing_env)
-                if diff_keys:
-                    logger.info("Differing env key(s) in existing container for service %s: %s",
-                                self.service.name, ",".join(diff_keys))
-                start_new = (self.service.always_start_new or
-                             self.service.image not in existing.image.tags or
-                             bool(diff_keys))
-                if not start_new:
-                    logger.info("There is an existing container for %s, not creating a new one",
-                                self.service.name)
-                    client.run_container(existing.id)
-                    return RunCondition.STARTED
+            self._start_existing(existings)
+            if self.run_condition.state in [RunCondition.STARTED, RunCondition.RUNNING]:
+                return
         logger.info("Creating new container for service %s", self.service.name)
+        self.service.pre_start()
+        if self.service.pre_start.__func__ is not Service.pre_start:
+            logger.info("pre_start for service %s ran", self.service.name)
+        self.run_condition.pre_started()
         client.run_service_on_network(self.container_name_prefix,
                                       self.service,
                                       self.options.network)
-        return RunCondition.CREATED
 
+        self.run_condition.started()
+        if not self.ping():
+            self._fail()
+            return
+        self.service.post_start()
+        self.run_condition.post_started()
+        if self.service.post_start.__func__ is not Service.post_start:
+            logger.info("post_start for service %s ran", self.service.name)
 
     def ping(self):
         start = time.monotonic()
         while time.monotonic() - start < self.options.timeout:
             if self.service.ping():
                 logger.info("Service %s pinged successfully", self.service.name)
+                self.run_condition.pinged()
                 return True
             time.sleep(0.1)
         logger.error("Could not ping service with timeout of %d", self.options.timeout)
@@ -153,36 +178,23 @@ class ServiceAgent(threading.Thread):
         elif self.action == Actions.STOP:
             self.stop_container()
 
-    def _fail(self, run_condition):
+    def _fail(self):
         self.status = AgentStatus.FAILED
+        self.run_condition.fail()
         self.context.service_failed(self.service)
-        if run_condition in [RunCondition.CREATED, RunCondition.CREATED]:
+        if RunCondition.START in self.run_condition.actions:
             self._stop_container(remove=True)
 
     def start_container(self):
-        # pylint: disable=import-outside-toplevel, cyclic-import
-        from miniboss.services import Service
-        run_condition = RunCondition.NULL
         if self.service.name in self.options.build:
             tag = self.build_image()
             self.service.image = tag
         try:
-            self.service.pre_start()
-            if self.service.pre_start.__func__ is not Service.pre_start:
-                logger.info("pre_start for service %s ran", self.service.name)
-            run_condition = self.run_image()
-            if run_condition != RunCondition.ALREADY_RUNNING:
-                if not self.ping():
-                    self._fail(run_condition)
-                    return
-            if run_condition == RunCondition.CREATED:
-                self.service.post_start()
-                if self.service.post_start.__func__ is not Service.post_start:
-                    logger.info("post_start for service %s ran", self.service.name)
+            self.run_image()
         except Exception: # pylint: disable=broad-except
             logger.exception("Error starting service")
-            self._fail(run_condition)
-        else:
+            self._fail()
+        if self.run_condition.state == RunCondition.RUNNING:
             logger.info("Service %s started successfully", self.service.name)
             self.status = AgentStatus.STARTED
             self.context.service_started(self.service)

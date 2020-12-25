@@ -11,7 +11,7 @@ from miniboss.service_agent import (ServiceAgent,
                                     AgentStatus,
                                     Actions,
                                     ServiceAgentException)
-from miniboss.types import Options, Network
+from miniboss.types import Options, Network, RunCondition
 
 from common import FakeDocker, FakeService, FakeRunningContext, FakeContainer
 
@@ -380,6 +380,7 @@ class ServiceAgentTests(unittest.TestCase):
         assert dockerfile == 'Dockerfile'
         assert image_tag == now.strftime("myservice-miniboss-%Y-%m-%d-%H%M")
         assert retval == image_tag
+        assert RunCondition.BUILD_IMAGE in agent.run_condition.actions
 
 
     def test_build_image_dockerfile(self):
