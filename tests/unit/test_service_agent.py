@@ -247,7 +247,7 @@ class ServiceAgentTests(unittest.TestCase):
         assert fake_service.init_called
 
 
-    def test_no_ping_or_init_if_running(self):
+    def test_no_pre_ping_or_init_if_running(self):
         service = FakeService()
         fake_context = FakeRunningContext()
         agent = ServiceAgent(service, Options(Network('the-network', 'the-network-id'),
@@ -260,6 +260,7 @@ class ServiceAgentTests(unittest.TestCase):
         agent.join()
         assert service.ping_count == 0
         assert not service.init_called
+        assert not service.pre_start_called
 
 
     def test_yes_ping_no_init_if_started(self):
