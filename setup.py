@@ -1,12 +1,8 @@
 import os
 from setuptools import setup
 
-long_description = """
-miniboss is a Python application for locally running multiple dependent docker
-services, individually rebuilding and restarting them, and managing application
-state with lifecycle hooks. Services definitions can be written in Python,
-allowing the use of programming logic instead of markup.
-"""
+with open('README.md', 'r', encoding='utf-8') as f:
+    long_description = f.read()
 
 setup(
     name = "miniboss",
@@ -14,6 +10,7 @@ setup(
     author = "Ulas Turkmen",
     description = "Containerized app testing framework",
     long_description = long_description,
+    long_description_content_type='text/markdown',
     install_requires = ["click>7", "docker>4", "furl>2", "requests>2"],
     tests_require = ["pytest>5.4"],
     packages=['miniboss'],

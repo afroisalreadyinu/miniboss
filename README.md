@@ -287,9 +287,9 @@ containers are restarted or a specific service is
 - [x] Destroy service if it cannot be started
 - [x] Log when custom post_start is done
 - [x] Don't start new if int-string env keys don't differ
-- [ ] Don't run pre-start if container found
-- [ ] Issue with latest tag
+- [x] Don't run pre-start if container found
 - [ ] Multiple clusters on single host with group id
+- [ ] Build container if tag doesn't exist and it has `build_from_directory`
 - [ ] Add stop-only command
 - [ ] Better pypi readme with release notes
 - [ ] Exporting environment values for use in shell
