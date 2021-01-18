@@ -281,6 +281,16 @@ containers are restarted or a specific service is
 - **`dockerfile`**: Dockerfile to use when building a service from the
   `build_from_directory`. Default is `Dockerfile`.
 
+## Release notes
+
+### 0.3.0
+
+- Linting (0.3.0)
+- Pull container image if it doesn't exist
+- Integration tests
+- Mounting volumes
+- Pre-start lifetime event
+
 ## Todos
 
 - [x] Don't fail on start if excluded services depend on each other
@@ -299,11 +309,6 @@ containers are restarted or a specific service is
 - [ ] Running tests once system started
 - [ ] Using context values in tests
 - [ ] Dependent test suites and setups
-- [x] Add linting (0.3.0)
-- [x] Pull containers (0.3.0)
-- [x] Integration tests (0.3.0)
-- [x] Mounting volumes (0.3.0)
-- [x] pre-start lifetime event (0.3.0)
 - [x] Bug: context values when reloading a service
 - [x] Derive exceptions from a base `MinibossException`
 - [x] Don't use existing container if env changed
