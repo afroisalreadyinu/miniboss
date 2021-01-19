@@ -1,17 +1,18 @@
-from typing import NamedTuple, List
+import attr
+from attr.validators import instance_of, deep_iterable
 
-# pylint: disable=inherit-non-class
-class Network(NamedTuple):
-    name: str
-    id: str
+@attr.s(kw_only=True)
+class Network:
+    name = attr.ib(validator=instance_of(str))
+    id = attr.ib(validator=instance_of(str))
 
-# pylint: disable=inherit-non-class
-class Options(NamedTuple):
-    network: Network
-    timeout: int
-    remove: bool
-    run_dir: str
-    build: List[str]
+@attr.s(kw_only=True)
+class Options:
+    network = attr.ib(validator=instance_of(Network))
+    timeout = attr.ib(validator=instance_of((float, int)))
+    remove = attr.ib(validator=instance_of(bool))
+    run_dir = attr.ib(validator=instance_of(str))
+    build = attr.ib(validator=deep_iterable(member_validator=instance_of(str)))
 
 class AgentStatus:
     NULL = 'null'

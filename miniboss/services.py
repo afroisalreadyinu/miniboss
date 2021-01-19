@@ -7,7 +7,7 @@ from miniboss.docker_client import DockerClient
 from miniboss.types import Options, Network
 from miniboss.running_context import RunningContext
 from miniboss.context import Context
-from miniboss.exceptions import ServiceLoadError, ServiceDefinitionError
+from miniboss.exceptions import MinibossException, ServiceLoadError, ServiceDefinitionError
 
 logging.basicConfig(
     level=logging.INFO,
@@ -20,6 +20,7 @@ KEYCLOAK_PORT = 8090
 OSTKREUZ_PORT = 8080
 ALLOWED_STOP_SIGNALS = ["SIGINT", "SIGTERM", "SIGKILL", "SIGQUIT"]
 
+group_name = None
 
 class ServiceMeta(type):
     # pylint: disable=too-many-branches
@@ -206,6 +207,9 @@ class ServiceCollection:
             raise ServiceDefinitionError(msg)
 
     def start_all(self, options: Options):
+        docker = DockerClient.get_client()
+        network = docker.create_network(options.network.name)
+        options.network.id = network.id
         self.running_context = RunningContext(self.all_by_name, options)
         while not (self.running_context.done or self.running_context.failed_services):
             for agent in self.running_context.ready_to_start:
@@ -243,23 +247,40 @@ class ServiceCollection:
                     queue.append(dependant)
         self.all_by_name = {service.name: service for service in required}
 
+def set_group_name(name):
+    global group_name
+    group_name = name
 
 def start_services(maindir, exclude, network_name, timeout):
-    docker = DockerClient.get_client()
+    if group_name is None:
+        raise MinibossException(
+            "Group name is not set; set it with miniboss.group_name in the main script"
+        )
     Context.load_from(maindir)
     collection = ServiceCollection()
     collection.load_definitions()
     collection.exclude_for_start(exclude)
-    network = docker.create_network(network_name)
-    options = Options(Network(network_name, network.id), timeout, False, maindir, [])
+    options = Options(network=Network(name=network_name, id=''),
+                      timeout=timeout,
+                      remove=False,
+                      run_dir=maindir,
+                      build=[])
     service_names = collection.start_all(options)
     logger.info("Started services: %s", ", ".join(service_names))
     Context.save_to(maindir)
 
 
 def stop_services(maindir, exclude, network_name, remove, timeout):
+    if group_name is None:
+        raise MinibossException(
+            "Group name is not set; set it with miniboss.group_name in the main script"
+        )
     logger.info("Stopping services (excluded: %s)", "none" if not exclude else ",".join(exclude))
-    options = Options(Network(network_name, ""), timeout, remove, maindir, [])
+    options = Options(network=Network(name=network_name, id=''),
+                      timeout=timeout,
+                      remove=remove,
+                      run_dir=maindir,
+                      build=[])
     collection = ServiceCollection()
     collection.load_definitions()
     collection.exclude_for_stop(exclude)
@@ -269,7 +290,15 @@ def stop_services(maindir, exclude, network_name, remove, timeout):
 
 # pylint: disable=too-many-arguments
 def reload_service(maindir, service, network_name, remove, timeout):
-    options = Options(Network(network_name, ""), timeout, remove, maindir, [service])
+    if group_name is None:
+        raise MinibossException(
+            "Group name is not set; set it with miniboss.group_name in the main script"
+        )
+    options = Options(network=Network(name=network_name, id=''),
+                      timeout=timeout,
+                      remove=remove,
+                      run_dir=maindir,
+                      build=[service])
     stop_collection = ServiceCollection()
     stop_collection.load_definitions()
     stop_collection.check_can_be_built(service)

@@ -2,6 +2,15 @@ import uuid
 import time
 from types import SimpleNamespace as Bunch
 
+from miniboss.types import Options, Network
+
+DEFAULT_OPTIONS = Options(network=Network(name='the-network', id='the-network-id'),
+                          timeout=1,
+                          remove=False,
+                          run_dir='/etc',
+                          build=[])
+
+
 class FakeRunningContext:
     def __init__(self):
         self.started_services = []

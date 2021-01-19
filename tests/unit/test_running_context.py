@@ -5,16 +5,8 @@ from types import SimpleNamespace as Bunch
 from miniboss.running_context import RunningContext
 from miniboss.service_agent import Options
 from miniboss.services import connect_services
-from miniboss.types import Options, Network
 
-from common import FakeService
-
-DEFAULT_OPTIONS = Options(network=Network('the-network', 'the-network-id'),
-                          timeout=50,
-                          remove=False,
-                          run_dir='/etc',
-                          build=[])
-
+from common import FakeService, DEFAULT_OPTIONS
 
 class RunningContextTests(unittest.TestCase):
 

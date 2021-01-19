@@ -6,6 +6,7 @@ from types import SimpleNamespace as Bunch
 import tempfile
 import pathlib
 
+import attr
 import pytest
 
 from miniboss.services import (connect_services,
@@ -16,15 +17,9 @@ from miniboss.services import (connect_services,
 
 from miniboss.service_agent import ServiceAgent
 from miniboss.types import Options, Network
-from miniboss import services, service_agent, Context
+from miniboss import services, service_agent, Context, exceptions
 
-from common import FakeDocker, FakeContainer
-
-DEFAULT_OPTIONS = Options(network=Network('the-network', 'the-network-id'),
-                          timeout=50,
-                          remove=False,
-                          run_dir='/etc',
-                          build=[])
+from common import FakeDocker, FakeContainer, DEFAULT_OPTIONS
 
 class ServiceDefinitionTests(unittest.TestCase):
 
@@ -442,9 +437,7 @@ class ServiceCollectionTests(unittest.TestCase):
             build_from_directory = "goodbye/dir"
             dockerfile = "Dockerfile.alt"
         collection.load_definitions()
-        default_args = DEFAULT_OPTIONS._asdict()
-        default_args.pop('build')
-        options = Options(build=['goodbye'], **default_args)
+        options = attr.evolve(DEFAULT_OPTIONS, build=['goodbye'])
         retval = collection.start_all(options)
         assert len(self.docker._images_built) == 1
         build_dir, dockerfile, image_tag = self.docker._images_built[0]
@@ -522,7 +515,7 @@ class ServiceCollectionTests(unittest.TestCase):
         collection.load_definitions()
         collection.stop_all(DEFAULT_OPTIONS)
         assert container1.stopped
-        assert container1.timeout == 50
+        assert container1.timeout == 1
         assert not container2.stopped
 
     def test_stop_without_remove(self):
@@ -550,7 +543,7 @@ class ServiceCollectionTests(unittest.TestCase):
         collection.load_definitions()
         collection.stop_all(DEFAULT_OPTIONS)
         assert container1.stopped
-        assert container1.timeout == 50
+        assert container1.timeout == 1
         assert container1.removed_at is None
         assert not container2.stopped
         assert self.docker._networks_removed == []
@@ -588,7 +581,12 @@ class ServiceCollectionTests(unittest.TestCase):
 
         collection._base_class = NewServiceBase
         collection.load_definitions()
-        collection.stop_all(Options(Network('the-network', 'the-network-id'), 50, True, "/etc", []))
+        options = Options(network=Network(name='the-network', id='the-network-id'),
+                          timeout=50,
+                          remove=True,
+                          run_dir='/etc',
+                          build=[])
+        collection.stop_all(options)
         assert container1.stopped
         assert container1.removed_at is not None
         assert container2.stopped
@@ -623,7 +621,12 @@ class ServiceCollectionTests(unittest.TestCase):
         collection._base_class = NewServiceBase
         collection.load_definitions()
         collection.exclude_for_stop(['service2'])
-        collection.stop_all(Options(Network('the-network', 'the-network-id'), 50, True, '/etc', []))
+        options = Options(network=Network(name='the-network', id='the-network-id'),
+                          timeout=50,
+                          remove=True,
+                          run_dir='/etc',
+                          build=[])
+        collection.stop_all(options)
         assert container1.stopped
         assert container1.removed_at is not None
         # service2 was excluded
@@ -726,11 +729,20 @@ class ServiceCommandTests(unittest.TestCase):
 
         self.collection = MockServiceCollection()
         services.ServiceCollection = lambda: self.collection
+        services.set_group_name('test')
         Context._reset()
 
-    def test_start_services_create_network(self):
-        services.start_services('/tmp', [], "miniboss", 50)
-        assert self.docker._networks_created == ["miniboss"]
+    def tearDown(self):
+        services.group_name = None
+
+    def test_error_without_group_name(self):
+        services.group_name = None
+        with pytest.raises(exceptions.MinibossException):
+            services.start_services('/tmp', [], "miniboss", 50)
+        with pytest.raises(exceptions.MinibossException):
+            services.stop_services('/tmp', ['test'], "miniboss", False, 50)
+        with pytest.raises(exceptions.MinibossException):
+            services.reload_service('/tmp', 'the-service', "miniboss", False, 50)
 
     def test_start_services_exclude(self):
         services.start_services("/tmp", ['blah'], "miniboss", 50)
