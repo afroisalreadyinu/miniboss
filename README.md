@@ -60,7 +60,8 @@ The first use of miniboss is in the call to `miniboss.group_name`, which
 specifies a name for this group of services. Setting the group name with
 `miniboss.group_name` is required. The group name is used to identify the
 services and network defined in a file; you will see it in a number of places
-such as container and network names when miniboss creates a cluster.
+such as container and network names when miniboss creates a cluster. It also
+enables multiple groups on the same host to be managed by miniboss.
 
 A **service** is defined by subclassing `miniboss.Service` and overriding, in
 the minimal case, the fields `image` and `name`. The `env` field specifies the
@@ -208,18 +209,21 @@ executed on the host computer. The next section explains the details.
 ## Ports and hosts
 
 miniboss starts services on an isolated bridge network, mapping no ports by
-default. On this network, services can be contacted under the service name as
-hostname, on the ports they are listening on. The `appdb` Postgresql service
-above, for example, can be contacted on the port 5432, the default port on which
-Postgresql listens. This is the reason the host part of the `DB_URI` environment
-variable on the `python-todo` service is `appdb:5432`. If you want to reach
-`appdb` on the port `5433` from the host system, which would be necessary to
-implement the `ping` method as above, you need to make this mapping explicit
-with the `ports` field of the service definition. This field accepts a
-dictionary of integer keys and values. The key is the service container port,
-and the value is the host port. In the case of `appdb`, the Postgresql port of
-the container is mapped to port 5433 on the local machine, in order not to
-collide with any local Postgresql instances.
+default. The name of this service can be specified either with the
+`--network-name` argument when starting a group. If it's not specified, the name
+will be generated from the group name by prefixing it with `miniboss-`. On the
+per-group network, services can be contacted under the service name as hostname,
+on the ports they are listening on. The `appdb` Postgresql service above, for
+example, can be contacted on the port 5432, the default port on which Postgresql
+listens. This is the reason the host part of the `DB_URI` environment variable
+on the `python-todo` service is `appdb:5432`. If you want to reach `appdb` on
+the port `5433` from the host system, which would be necessary to implement the
+`ping` method as above, you need to make this mapping explicit with the `ports`
+field of the service definition. This field accepts a dictionary of integer keys
+and values. The key is the service container port, and the value is the host
+port. In the case of `appdb`, the Postgresql port of the container is mapped to
+port 5433 on the local machine, in order not to collide with any local
+Postgresql instances.
 
 ### The global context
 
@@ -306,7 +310,7 @@ containers are restarted or a specific service is
 - [x] Log when custom post_start is done
 - [x] Don't start new if int-string env keys don't differ
 - [x] Don't run pre-start if container found
-- [ ] Multiple clusters on single host with group id
+- [x] Multiple clusters on single host with group id
 - [ ] Build container if tag doesn't exist and it has `build_from_directory`
 - [ ] Add stop-only command
 - [ ] Better pypi readme with release notes
