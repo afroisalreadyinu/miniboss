@@ -260,6 +260,7 @@ def start_services(maindir, exclude, network_name, timeout):
     collection = ServiceCollection()
     collection.load_definitions()
     collection.exclude_for_start(exclude)
+    network_name = network_name or "miniboss-{}".format(group_name)
     options = Options(network=Network(name=network_name, id=''),
                       timeout=timeout,
                       remove=False,
@@ -276,6 +277,7 @@ def stop_services(maindir, exclude, network_name, remove, timeout):
             "Group name is not set; set it with miniboss.group_name in the main script"
         )
     logger.info("Stopping services (excluded: %s)", "none" if not exclude else ",".join(exclude))
+    network_name = network_name or "miniboss-{}".format(group_name)
     options = Options(network=Network(name=network_name, id=''),
                       timeout=timeout,
                       remove=remove,
@@ -294,6 +296,7 @@ def reload_service(maindir, service, network_name, remove, timeout):
         raise MinibossException(
             "Group name is not set; set it with miniboss.group_name in the main script"
         )
+    network_name = network_name or "miniboss-{}".format(group_name)
     options = Options(network=Network(name=network_name, id=''),
                       timeout=timeout,
                       remove=remove,

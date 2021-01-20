@@ -21,7 +21,7 @@ def get_main_directory():
 
 @cli.command()
 @click.option("--exclude", help="Names of services to exclude (comma-separated)")
-@click.option("--network-name", default="miniboss-network", help="Network to use")
+@click.option("--network-name", help="Network name (generated from group name if not specified)")
 @click.option("--timeout", type=int, default=300, help="Timeout for starting a service (seconds)")
 def start(exclude, network_name, timeout):
     exclude = exclude.split(",") if exclude else []
@@ -30,7 +30,7 @@ def start(exclude, network_name, timeout):
 
 @cli.command()
 @click.option("--exclude", help="Names of services to exclude (comma-separated)")
-@click.option("--network-name", default="miniboss-network", help="Network to use")
+@click.option("--network-name", help="Network name (generated from group name if not specified)")
 @click.option("--remove", is_flag=True, default=False, help="Remove container images and network")
 @click.option("--timeout", type=int, default=50, help="Timeout for stopping a service (seconds)")
 def stop(exclude, network_name, remove, timeout):
@@ -38,7 +38,7 @@ def stop(exclude, network_name, remove, timeout):
     services.stop_services(get_main_directory(), exclude, network_name, remove, timeout)
 
 @cli.command()
-@click.option("--network-name", default="miniboss-network", help="Network to use")
+@click.option("--network-name", help="Network name (generated from group name if not specified)")
 @click.option("--timeout", type=int, default=50, help="Timeout for stopping a service (seconds)")
 @click.option("--remove", is_flag=True, default=False, help="Remove stopped container")
 @click.argument('service')

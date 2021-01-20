@@ -768,6 +768,22 @@ class ServiceCommandTests(unittest.TestCase):
             context_data = json.load(context_file)
         assert context_data == {'key_one': 'a_value', 'key_two': 'other_value'}
 
+
+    def test_start_services(self):
+        services.start_services('/tmp', [], "miniboss", 50)
+        options = self.collection.options
+        assert options.network.name == 'miniboss'
+        assert options.network.id == ''
+        assert options.timeout == 50
+        assert options.remove == False
+        assert options.run_dir == '/tmp'
+        assert options.build == []
+
+    def test_services_network_name_none(self):
+        services.start_services('/tmp', [], None, 50)
+        options = self.collection.options
+        assert options.network.name == 'miniboss-test'
+
     def test_load_context_on_new(self):
         directory = tempfile.mkdtemp()
         with open(os.path.join(directory, ".miniboss-context"), "w") as context_file:
@@ -783,6 +799,10 @@ class ServiceCommandTests(unittest.TestCase):
         assert self.collection.options.run_dir == '/tmp'
         assert not self.collection.options.remove
         assert self.collection.excluded == ['test']
+
+    def test_stop_services_network_name_none(self):
+        services.stop_services('/tmp', ['test'], None, False, 50)
+        assert self.collection.options.network.name == 'miniboss-test'
 
     def test_stop_services_remove_context(self):
         directory = tempfile.mkdtemp()
@@ -804,6 +824,9 @@ class ServiceCommandTests(unittest.TestCase):
         assert self.collection.options.build == ['the-service']
         assert not self.collection.options.remove
 
+    def test_reload_service_network_name_none(self):
+        services.reload_service('/tmp', 'the-service', None, False, 50)
+        assert self.collection.options.network.name == 'miniboss-test'
 
     def test_reload_service_save_and_load_context(self):
         directory = tempfile.mkdtemp()
