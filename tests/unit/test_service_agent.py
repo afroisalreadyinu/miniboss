@@ -6,6 +6,7 @@ from datetime import datetime
 import attr
 import pytest
 
+from miniboss import types
 from miniboss import service_agent, context
 from miniboss.services import connect_services
 from miniboss.service_agent import (ServiceAgent,
@@ -22,7 +23,10 @@ class ServiceAgentTests(unittest.TestCase):
     def setUp(self):
         self.docker = FakeDocker.Instance = FakeDocker({'the-network': 'the-network-id'})
         service_agent.DockerClient = self.docker
+        types.set_group_name('testing')
 
+    def tearDown(self):
+        types._unset_group_name()
 
     def test_can_start(self):
         services = connect_services([Bunch(name='service1', dependencies=[]),
@@ -66,7 +70,7 @@ class ServiceAgentTests(unittest.TestCase):
         agent.run_image()
         assert len(self.docker._services_started) == 1
         prefix, service, network = self.docker._services_started[0]
-        assert prefix == "service1-miniboss"
+        assert prefix == "service1-testing"
         assert service.name == 'service1'
         assert service.image == 'not/used'
         assert network.name == 'the-network'
@@ -114,12 +118,12 @@ class ServiceAgentTests(unittest.TestCase):
         service = FakeService()
         agent = ServiceAgent(service, DEFAULT_OPTIONS, None)
         self.docker._existing_containers = [Bunch(status='running',
-                                                  name="{}-miniboss-123".format(service.name),
+                                                  name="{}-testing-123".format(service.name),
                                                   network='the-network')]
         agent.run_image()
         assert len(self.docker._services_started) == 0
         assert len(self.docker._existing_queried) == 1
-        assert self.docker._existing_queried[0] == ("service1-miniboss",
+        assert self.docker._existing_queried[0] == ("service1-testing",
                                                     Network(name="the-network", id="the-network-id"))
 
 
@@ -131,7 +135,7 @@ class ServiceAgentTests(unittest.TestCase):
                                                   id='longass-container-id',
                                                   image=Bunch(tags=[service.image]),
                                                   attrs={'Config': {'Env': []}},
-                                                  name="{}-miniboss-123".format(service.name))]
+                                                  name="{}-testing-123".format(service.name))]
         agent.run_image()
         assert len(self.docker._services_started) == 0
         assert self.docker._containers_ran == ['longass-container-id']
@@ -149,7 +153,7 @@ class ServiceAgentTests(unittest.TestCase):
         agent.run_image()
         assert len(self.docker._services_started) == 1
         prefix, service, network = self.docker._services_started[0]
-        assert prefix == "service1-miniboss"
+        assert prefix == "service1-testing"
         assert service.name == 'service1'
         assert service.image == 'not/used'
         assert network.name == 'the-network'
@@ -169,7 +173,7 @@ class ServiceAgentTests(unittest.TestCase):
         agent.run_image()
         assert len(self.docker._services_started) == 1
         prefix, service, network = self.docker._services_started[0]
-        assert prefix == "service1-miniboss"
+        assert prefix == "service1-testing"
         assert service.name == 'service1'
         assert service.image == 'not/used'
         assert network.name == 'the-network'
@@ -185,7 +189,7 @@ class ServiceAgentTests(unittest.TestCase):
                                                   id='longass-container-id',
                                                   image=Bunch(tags=[service.image]),
                                                   attrs={'Config': {'Env': ['KEY=12345']}},
-                                                  name="{}-miniboss-123".format(service.name))]
+                                                  name="{}-testing-123".format(service.name))]
         agent.run_image()
         assert len(self.docker._services_started) == 0
 
@@ -256,7 +260,7 @@ class ServiceAgentTests(unittest.TestCase):
         agent = ServiceAgent(service, options, fake_context)
         self.docker._existing_containers = [Bunch(status='running',
                                                   network='the-network',
-                                                  name="{}-miniboss-123".format(service.name))]
+                                                  name="{}-testing-123".format(service.name))]
         agent.start_service()
         agent.join()
         assert service.ping_count == 0
@@ -273,7 +277,7 @@ class ServiceAgentTests(unittest.TestCase):
                                                   id='longass-container-id',
                                                   image=Bunch(tags=[service.image]),
                                                   attrs={'Config': {'Env': []}},
-                                                  name="{}-miniboss-123".format(service.name))]
+                                                  name="{}-testing-123".format(service.name))]
         agent.start_service()
         agent.join()
         assert service.ping_count == 1
@@ -317,7 +321,7 @@ class ServiceAgentTests(unittest.TestCase):
     def test_stop_remove_container_on_failed(self):
         fake_context = FakeRunningContext()
         name = 'aservice'
-        container = FakeContainer(name='{}-miniboss-5678'.format(name),
+        container = FakeContainer(name='{}-testing-5678'.format(name),
                                   network='the-network',
                                   status='running')
         _context = self
@@ -363,7 +367,7 @@ class ServiceAgentTests(unittest.TestCase):
     def test_stop_existing_container(self):
         fake_context = FakeRunningContext()
         fake_service = FakeService(exception_at_init=ValueError)
-        container = FakeContainer(name='{}-miniboss-5678'.format(fake_service.name),
+        container = FakeContainer(name='{}-testing-5678'.format(fake_service.name),
                                   network='the-network',
                                   status='running')
         self.docker._existing_containers = [container]

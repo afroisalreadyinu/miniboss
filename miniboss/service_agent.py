@@ -4,6 +4,7 @@ import time
 from datetime import datetime
 import logging
 
+from miniboss import types
 from miniboss.docker_client import DockerClient
 from miniboss.context import Context
 from miniboss.types import AgentStatus, RunCondition, Actions, Options
@@ -67,7 +68,7 @@ class ServiceAgent(threading.Thread):
 
     @property
     def container_name_prefix(self):
-        return "{:s}-miniboss".format(self.service.name)
+        return "{:s}-{:s}".format(self.service.name, types.group_name)
 
     def process_service_started(self, service):
         if service in self.open_dependencies:

@@ -176,6 +176,10 @@ class ServiceCollectionTests(unittest.TestCase):
         self.docker = FakeDocker.Instance = FakeDocker({'the-network': 'the-network-id'})
         services.DockerClient = self.docker
         service_agent.DockerClient = self.docker
+        types.set_group_name('testing')
+
+    def tearDown(self):
+        types._unset_group_name()
 
     def test_raise_exception_on_no_services(self):
         collection = ServiceCollection()
@@ -423,7 +427,7 @@ class ServiceCollectionTests(unittest.TestCase):
         # The one without dependencies should have been started first
         name_prefix, service, network_name = self.docker._services_started[0]
         assert service.image == 'howareyou/image'
-        assert name_prefix == "howareyou-miniboss"
+        assert name_prefix == "howareyou-testing"
 
 
     def test_start_all_with_build(self):
@@ -502,11 +506,11 @@ class ServiceCollectionTests(unittest.TestCase):
 
 
     def test_stop_all_remove_false(self):
-        container1 = FakeContainer(name='service1-miniboss-1234',
+        container1 = FakeContainer(name='service1-testing-1234',
                                    stopped=False,
                                    network='the-network',
                                    status='running')
-        container2 = FakeContainer(name='service2-miniboss-5678',
+        container2 = FakeContainer(name='service2-testing-5678',
                                    stopped=False,
                                    removed=False,
                                    network='the-network',
@@ -533,10 +537,10 @@ class ServiceCollectionTests(unittest.TestCase):
         assert not container2.stopped
 
     def test_stop_without_remove(self):
-        container1 = FakeContainer(name='service1-miniboss-1234',
+        container1 = FakeContainer(name='service1-testing-1234',
                                    network='the-network',
                                    status='running')
-        container2 = FakeContainer(name='service2-miniboss-5678',
+        container2 = FakeContainer(name='service2-testing-5678',
                                    network='the-network',
                                    status='exited')
         self.docker._existing_containers = [container1, container2]
@@ -564,13 +568,13 @@ class ServiceCollectionTests(unittest.TestCase):
 
 
     def test_stop_with_remove_and_order(self):
-        container1 = FakeContainer(name='service1-miniboss-1234',
+        container1 = FakeContainer(name='service1-testing-1234',
                                    network='the-network',
                                    status='running')
-        container2 = FakeContainer(name='service2-miniboss-5678',
+        container2 = FakeContainer(name='service2-testing-5678',
                                    network='the-network',
                                    status='running')
-        container3 = FakeContainer(name='service3-miniboss-5678',
+        container3 = FakeContainer(name='service3-testing-5678',
                                    network='the-network',
                                    status='running')
         self.docker._existing_containers = [container1, container2, container3]
@@ -612,10 +616,10 @@ class ServiceCollectionTests(unittest.TestCase):
 
 
     def test_stop_with_remove_and_exclude(self):
-        container1 = FakeContainer(name='service1-miniboss-1234',
+        container1 = FakeContainer(name='service1-testing-1234',
                                    network='the-network',
                                    status='running')
-        container2 = FakeContainer(name='service2-miniboss-5678',
+        container2 = FakeContainer(name='service2-testing-5678',
                                    network='the-network',
                                    status='running')
         self.docker._existing_containers = [container1, container2]
@@ -651,13 +655,13 @@ class ServiceCollectionTests(unittest.TestCase):
 
 
     def test_update_for_base_service(self):
-        container1 = FakeContainer(name='service1-miniboss-1234',
+        container1 = FakeContainer(name='service1-testing-1234',
                                    network='the-network',
                                    status='running')
-        container2 = FakeContainer(name='service2-miniboss-5678',
+        container2 = FakeContainer(name='service2-testing-5678',
                                    network='the-network',
                                    status='running')
-        container3 = FakeContainer(name='service3-miniboss-5678',
+        container3 = FakeContainer(name='service3-testing-5678',
                                    network='the-network',
                                    status='running')
         self.docker._existing_containers = [container1, container2, container3]
@@ -745,7 +749,7 @@ class ServiceCommandTests(unittest.TestCase):
         Context._reset()
 
     def tearDown(self):
-        services.group_name = None
+        types._unset_group_name()
 
     def test_error_without_group_name(self):
         types.group_name = None

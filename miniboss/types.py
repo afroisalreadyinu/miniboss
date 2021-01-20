@@ -71,3 +71,7 @@ group_name = None
 def set_group_name(name):
     global group_name
     group_name = name
+
+def _unset_group_name():
+    global group_name
+    group_name = None
