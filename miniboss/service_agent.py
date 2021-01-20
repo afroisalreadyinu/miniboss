@@ -81,7 +81,7 @@ class ServiceAgent(threading.Thread):
     def build_image(self):
         client = DockerClient.get_client()
         time_tag = datetime.now().strftime("%Y-%m-%d-%H%M")
-        image_tag = "{:s}-miniboss-{:s}".format(self.service.name, time_tag)
+        image_tag = "{:s}-{:s}".format(self.service.name, time_tag)
         build_dir = os.path.join(self.options.run_dir, self.service.build_from)
         logger.info("Building image with tag %s for service %s from directory %s",
                     image_tag, self.service.name, build_dir)
@@ -187,7 +187,8 @@ class ServiceAgent(threading.Thread):
             self._stop_container(remove=True)
 
     def start_container(self):
-        if self.service.name in self.options.build:
+        if (self.service.name in self.options.build
+            or (self.service.build_from and self.service.image.endswith(':latest'))):
             tag = self.build_image()
             self.service.image = tag
         try:

@@ -211,7 +211,7 @@ class ServiceAgentTests(unittest.TestCase):
                                                   start=start,
                                                   network='the-network',
                                                   attrs={'Config': {'Env': []}},
-                                                  name="{}-miniboss-123".format(service.name))]
+                                                  name="{}-testing-123".format(service.name))]
         agent.run_image()
         assert len(self.docker._services_started) == 1
         assert not restarted
@@ -222,6 +222,16 @@ class ServiceAgentTests(unittest.TestCase):
         fake_service.build_from = "the/service/dir"
         options = attr.evolve(DEFAULT_OPTIONS, build=[fake_service.name])
         agent = ServiceAgent(fake_service, options, fake_context)
+        agent.start_service()
+        agent.join()
+        assert len(self.docker._images_built) == 1
+
+    def test_if_build_from_and_latest(self):
+        fake_context = FakeRunningContext()
+        fake_service = FakeService()
+        fake_service.image = "service:latest"
+        fake_service.build_from = "the/service/dir"
+        agent = ServiceAgent(fake_service, DEFAULT_OPTIONS, fake_context)
         agent.start_service()
         agent.join()
         assert len(self.docker._images_built) == 1
@@ -392,7 +402,7 @@ class ServiceAgentTests(unittest.TestCase):
         build_dir, dockerfile, image_tag = self.docker._images_built[0]
         assert build_dir == "/etc/the/service/dir"
         assert dockerfile == 'Dockerfile'
-        assert image_tag == now.strftime("myservice-miniboss-%Y-%m-%d-%H%M")
+        assert image_tag == now.strftime("myservice-%Y-%m-%d-%H%M")
         assert retval == image_tag
         assert RunCondition.BUILD_IMAGE in agent.run_condition.actions
 

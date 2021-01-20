@@ -448,7 +448,7 @@ class ServiceCollectionTests(unittest.TestCase):
         build_dir, dockerfile, image_tag = self.docker._images_built[0]
         assert build_dir == "/etc/goodbye/dir"
         assert dockerfile == 'Dockerfile.alt'
-        assert image_tag.startswith("goodbye-miniboss")
+        assert image_tag.startswith("goodbye-")
         service = collection.all_by_name['goodbye']
         assert service.image == image_tag
 
