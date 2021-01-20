@@ -304,23 +304,26 @@ containers are restarted or a specific service is
 
 ### 0.3.0
 
-- Linting (0.3.0)
+- Linting
 - Pull container image if it doesn't exist
 - Integration tests
 - Mounting volumes
 - Pre-start lifetime event
 
+### 0.4.0
+
+- Don't fail on start if excluded services depend on each other
+- Destroy service if it cannot be started
+- Log when custom post_start is done
+- Don't start new if int-string env keys don't differ
+- Don't run pre-start if container found
+- Multiple clusters on single host with group id
+- Build container if tag doesn't exist and it has `build_from_directory`
+- Better pypi readme with release notes
+
 ## Todos
 
-- [x] Don't fail on start if excluded services depend on each other
-- [x] Destroy service if it cannot be started
-- [x] Log when custom post_start is done
-- [x] Don't start new if int-string env keys don't differ
-- [x] Don't run pre-start if container found
-- [x] Multiple clusters on single host with group id
-- [ ] Build container if tag doesn't exist and it has `build_from_directory`
 - [ ] Add stop-only command
-- [ ] Better pypi readme with release notes
 - [ ] Exporting environment values for use in shell
 - [ ] Running one-off containers
 - [ ] Configuration object extrapolation
