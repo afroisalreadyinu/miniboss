@@ -447,6 +447,19 @@ class ServiceCollectionTests(unittest.TestCase):
         service = collection.all_by_name['goodbye']
         assert service.image == image_tag
 
+    def test_start_all_create_network(self):
+        collection = ServiceCollection()
+        class NewServiceBase(Service):
+            name = "not used"
+            image = "not used"
+        class ServiceTwo(NewServiceBase):
+            name = "goodbye"
+            image = "goodbye/image"
+        collection._base_class = NewServiceBase
+        collection.load_definitions()
+        collection.start_all(DEFAULT_OPTIONS)
+        assert self.docker._networks_created == ["the-network"]
+
 
     def test_stop_on_fail(self):
         collection = ServiceCollection()
@@ -704,8 +717,6 @@ class ServiceCollectionTests(unittest.TestCase):
 class ServiceCommandTests(unittest.TestCase):
 
     def setUp(self):
-        self.docker = FakeDocker.Instance = FakeDocker({'miniboss': 'minibos-network-id'})
-        services.DockerClient = self.docker
         class MockServiceCollection:
             def load_definitions(self):
                 pass
