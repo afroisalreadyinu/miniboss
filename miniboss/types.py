@@ -65,3 +65,9 @@ class RunCondition:
 class Actions:
     START = 'start'
     STOP = 'stop'
+
+group_name = None
+
+def set_group_name(name):
+    global group_name
+    group_name = name

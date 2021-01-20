@@ -3,6 +3,7 @@ import logging
 from collections import Counter, deque
 from collections.abc import Mapping
 
+from miniboss import types
 from miniboss.docker_client import DockerClient
 from miniboss.types import Options, Network
 from miniboss.running_context import RunningContext
@@ -19,8 +20,6 @@ logger = logging.getLogger(__name__)
 KEYCLOAK_PORT = 8090
 OSTKREUZ_PORT = 8080
 ALLOWED_STOP_SIGNALS = ["SIGINT", "SIGTERM", "SIGKILL", "SIGQUIT"]
-
-group_name = None
 
 class ServiceMeta(type):
     # pylint: disable=too-many-branches
@@ -247,12 +246,8 @@ class ServiceCollection:
                     queue.append(dependant)
         self.all_by_name = {service.name: service for service in required}
 
-def set_group_name(name):
-    global group_name
-    group_name = name
-
 def start_services(maindir, exclude, network_name, timeout):
-    if group_name is None:
+    if types.group_name is None:
         raise MinibossException(
             "Group name is not set; set it with miniboss.group_name in the main script"
         )
@@ -260,7 +255,7 @@ def start_services(maindir, exclude, network_name, timeout):
     collection = ServiceCollection()
     collection.load_definitions()
     collection.exclude_for_start(exclude)
-    network_name = network_name or "miniboss-{}".format(group_name)
+    network_name = network_name or "miniboss-{}".format(types.group_name)
     options = Options(network=Network(name=network_name, id=''),
                       timeout=timeout,
                       remove=False,
@@ -272,12 +267,12 @@ def start_services(maindir, exclude, network_name, timeout):
 
 
 def stop_services(maindir, exclude, network_name, remove, timeout):
-    if group_name is None:
+    if types.group_name is None:
         raise MinibossException(
             "Group name is not set; set it with miniboss.group_name in the main script"
         )
     logger.info("Stopping services (excluded: %s)", "none" if not exclude else ",".join(exclude))
-    network_name = network_name or "miniboss-{}".format(group_name)
+    network_name = network_name or "miniboss-{}".format(types.group_name)
     options = Options(network=Network(name=network_name, id=''),
                       timeout=timeout,
                       remove=remove,
@@ -292,11 +287,11 @@ def stop_services(maindir, exclude, network_name, remove, timeout):
 
 # pylint: disable=too-many-arguments
 def reload_service(maindir, service, network_name, remove, timeout):
-    if group_name is None:
+    if types.group_name is None:
         raise MinibossException(
             "Group name is not set; set it with miniboss.group_name in the main script"
         )
-    network_name = network_name or "miniboss-{}".format(group_name)
+    network_name = network_name or "miniboss-{}".format(types.group_name)
     options = Options(network=Network(name=network_name, id=''),
                       timeout=timeout,
                       remove=remove,

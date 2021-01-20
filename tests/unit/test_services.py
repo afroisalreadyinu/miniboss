@@ -9,6 +9,7 @@ import pathlib
 import attr
 import pytest
 
+from miniboss import types
 from miniboss.services import (connect_services,
                                Service,
                                ServiceLoadError,
@@ -740,14 +741,14 @@ class ServiceCommandTests(unittest.TestCase):
 
         self.collection = MockServiceCollection()
         services.ServiceCollection = lambda: self.collection
-        services.set_group_name('test')
+        types.set_group_name('test')
         Context._reset()
 
     def tearDown(self):
         services.group_name = None
 
     def test_error_without_group_name(self):
-        services.group_name = None
+        types.group_name = None
         with pytest.raises(exceptions.MinibossException):
             services.start_services('/tmp', [], "miniboss", 50)
         with pytest.raises(exceptions.MinibossException):
