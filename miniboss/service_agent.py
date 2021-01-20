@@ -82,7 +82,7 @@ class ServiceAgent(threading.Thread):
         client = DockerClient.get_client()
         time_tag = datetime.now().strftime("%Y-%m-%d-%H%M")
         image_tag = "{:s}-miniboss-{:s}".format(self.service.name, time_tag)
-        build_dir = os.path.join(self.options.run_dir, self.service.build_from_directory)
+        build_dir = os.path.join(self.options.run_dir, self.service.build_from)
         logger.info("Building image with tag %s for service %s from directory %s",
                     image_tag, self.service.name, build_dir)
         client.build_image(build_dir, self.service.dockerfile, image_tag)

@@ -32,7 +32,7 @@ class FakeService:
     ports = {}
     env = {}
     always_start_new = False
-    build_from_directory = None
+    build_from = None
     dockerfile = 'Dockerfile'
 
     def __init__(self, name='service1', dependencies=None, fail_ping=False, exception_at_init=None):

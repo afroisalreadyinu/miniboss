@@ -257,6 +257,11 @@ containers are restarted or a specific service is
 
 - **`image`**: Container image of the service. Must be non-empty. You can use a
   repository URL here; if the image is not locally available, it will be pulled.
+  You are highly advised to specify a tag, even if it's `latest`, because
+  otherwise miniboss will not be able to identify which container image was used
+  for a service, and start a new container each time. If the tag of the `image`
+  is `latest`, and the `build_from` directory option is specified, the container
+  image will be built each time the service is started.
 
 - **`dependencies`**: A list of the dependencies of a service by name. If there
   are any invalid or circular dependencies, an error will be raised.
@@ -286,12 +291,14 @@ containers are restarted or a specific service is
   library module here). Default is `SIGTERM`. Accepted values are `SIGINT`,
   `SIGTERM`, `SIGKILL` and `SIGQUIT`.
 
-- **`build_from_directory`**: The directory from which a service can be
-  reloaded. It should be either absolute, or relative to the main script.
-  Required if you want to be able to reload a service.
+- **`build_from`**: The directory from which a service can be reloaded. It
+  should be either absolute, or relative to the main script. Required if you
+  want to be able to reload a service. If this option is specified, and the tag
+  of the `image` option is `latest`, the container image will be built each time
+  the service is started.
 
 - **`dockerfile`**: Dockerfile to use when building a service from the
-  `build_from_directory`. Default is `Dockerfile`.
+  `build_from` directory. Default is `Dockerfile`.
 
 ## Release notes
 

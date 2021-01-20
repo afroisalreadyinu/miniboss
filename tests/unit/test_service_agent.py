@@ -219,7 +219,7 @@ class ServiceAgentTests(unittest.TestCase):
     def test_build_on_start(self):
         fake_context = FakeRunningContext()
         fake_service = FakeService()
-        fake_service.build_from_directory = "the/service/dir"
+        fake_service.build_from = "the/service/dir"
         options = attr.evolve(DEFAULT_OPTIONS, build=[fake_service.name])
         agent = ServiceAgent(fake_service, options, fake_context)
         agent.start_service()
@@ -385,7 +385,7 @@ class ServiceAgentTests(unittest.TestCase):
         now = datetime.now()
         mock_datetime.now.return_value = now
         fake_service = FakeService(name='myservice')
-        fake_service.build_from_directory = "the/service/dir"
+        fake_service.build_from = "the/service/dir"
         agent = ServiceAgent(fake_service, DEFAULT_OPTIONS, FakeRunningContext())
         retval = agent.build_image()
         assert len(self.docker._images_built) == 1
@@ -400,7 +400,7 @@ class ServiceAgentTests(unittest.TestCase):
     def test_build_image_dockerfile(self):
         fake_service = FakeService(name='myservice')
         fake_service.dockerfile = 'Dockerfile.other'
-        fake_service.build_from_directory = "the/service/dir"
+        fake_service.build_from = "the/service/dir"
         agent = ServiceAgent(fake_service, DEFAULT_OPTIONS, FakeRunningContext())
         agent.build_image()
         assert len(self.docker._images_built) == 1

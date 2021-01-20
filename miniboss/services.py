@@ -41,11 +41,11 @@ class ServiceMeta(type):
         if "always_start_new" in attrdict and not isinstance(attrdict["always_start_new"], bool):
             raise ServiceDefinitionError(
                 "Field 'always_start_new' of service class {:s} must be a boolean".format(name))
-        if "build_from_directory" in attrdict:
-            build_dir = attrdict["build_from_directory"]
+        if "build_from" in attrdict:
+            build_dir = attrdict["build_from"]
             if not isinstance(build_dir, str) or build_dir == '':
                 raise ServiceDefinitionError(
-                    "Field 'build_from_directory' of service class {:s} must be a non-empty string"
+                    "Field 'build_from' of service class {:s} must be a non-empty string"
                     .format(name))
         if "dockerfile" in attrdict:
             dockerfile = attrdict["dockerfile"]
@@ -84,7 +84,7 @@ class Service(metaclass=ServiceMeta):
     env = {}
     always_start_new = False
     stop_signal = "SIGTERM"
-    build_from_directory = None
+    build_from = None
     dockerfile = "Dockerfile"
     volumes = {}
 
@@ -201,7 +201,7 @@ class ServiceCollection:
             msg = "No such service: {:s}".format(service_name)
             raise ServiceDefinitionError(msg)
         service = self.all_by_name[service_name]
-        if not service.build_from_directory:
+        if not service.build_from:
             msg = "Service {:s} cannot be built: No build directory specified".format(service.name)
             raise ServiceDefinitionError(msg)
 

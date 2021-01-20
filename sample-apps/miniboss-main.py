@@ -27,7 +27,7 @@ class Application(miniboss.Service):
     dependencies = ["appdb"]
     ports = {8080: 8080}
     stop_signal = "SIGINT"
-    build_from_directory = 'python-todo'
+    build_from = 'python-todo'
 
 if __name__ == "__main__":
     miniboss.cli()

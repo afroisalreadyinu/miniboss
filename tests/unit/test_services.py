@@ -82,13 +82,13 @@ class ServiceDefinitionTests(unittest.TestCase):
         assert service == NewService()
         assert a_dict[NewService()] == "one"
 
-    def test_invalid_build_from_directory(self):
+    def test_invalid_build_from(self):
         with pytest.raises(ServiceDefinitionError):
             class NewService(Service):
                 name = "yes"
                 image = "yes"
                 env = {}
-                build_from_directory = 123
+                build_from = 123
 
     def test_invalid_dockerfile(self):
         with pytest.raises(ServiceDefinitionError):
@@ -439,7 +439,7 @@ class ServiceCollectionTests(unittest.TestCase):
         class ServiceTwo(NewServiceBase):
             name = "goodbye"
             image = "goodbye/image"
-            build_from_directory = "goodbye/dir"
+            build_from = "goodbye/dir"
             dockerfile = "Dockerfile.alt"
         collection.load_definitions()
         options = attr.evolve(DEFAULT_OPTIONS, build=['goodbye'])
@@ -708,7 +708,7 @@ class ServiceCollectionTests(unittest.TestCase):
         class ServiceTwo(NewServiceBase):
             name = "service2"
             image = "howareyou/image"
-            build_from_directory = "the/service/dir"
+            build_from = "the/service/dir"
 
         collection._base_class = NewServiceBase
         collection.load_definitions()
