@@ -34,6 +34,8 @@ Here is a very simple service specification:
 #! /usr/bin/env python3
 import miniboss
 
+miniboss.group_name('readme-demo')
+
 class Database(miniboss.Service):
     name = "appdb"
     image = "postgres:10.6"
@@ -53,6 +55,12 @@ class Application(miniboss.Service):
 if __name__ == "__main__":
     miniboss.cli()
 ```
+
+The first use of miniboss is in the call to `miniboss.group_name`, which
+specifies a name for this group of services. Setting the group name with
+`miniboss.group_name` is required. The group name is used to identify the
+services and network defined in a file; you will see it in a number of places
+such as container and network names when miniboss creates a cluster.
 
 A **service** is defined by subclassing `miniboss.Service` and overriding, in
 the minimal case, the fields `image` and `name`. The `env` field specifies the
