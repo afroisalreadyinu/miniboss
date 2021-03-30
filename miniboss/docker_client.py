@@ -58,7 +58,12 @@ class DockerClient:
 
     def run_container(self, container_id):
         # The container should be already created but not in state running or starting
-        self.lib_client.api.start(container_id)
+        try:
+            self.lib_client.api.start(container_id)
+        except docker.errors.APIError as api_error:
+            # This might be e.g. due to cgroups errors
+            raise DockerException("Error starting container {}: {}".format(
+                container_id, api_error.explanation)) from None
         # Let's wait a little because the status of the container is
         # not set right away
         time.sleep(1)
