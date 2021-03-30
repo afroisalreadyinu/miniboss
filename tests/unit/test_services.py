@@ -5,6 +5,7 @@ from unittest.mock import patch
 from types import SimpleNamespace as Bunch
 import tempfile
 import pathlib
+import time
 
 import attr
 import pytest
@@ -452,6 +453,7 @@ class ServiceCollectionTests(unittest.TestCase):
         service = collection.all_by_name['goodbye']
         assert service.image == image_tag
 
+
     def test_start_all_create_network(self):
         collection = ServiceCollection()
         class NewServiceBase(Service):
@@ -503,6 +505,32 @@ class ServiceCollectionTests(unittest.TestCase):
         collection.load_definitions()
         started = collection.start_all(DEFAULT_OPTIONS)
         assert started == ["howareyou"]
+
+
+    def test_continue_if_start_failed(self):
+        """If a service fails, those that don't depend on it should still be started"""
+        collection = ServiceCollection()
+        class NewServiceBase(Service):
+            name = "not used"
+            image = "not used"
+
+        class FirstService(NewServiceBase):
+            name = "first-service"
+            image = "howareyou/image"
+            def ping(self):
+                raise ValueError("I failed miserably")
+
+        class SecondService(NewServiceBase):
+            name = "second-service"
+            image = "howareyou/image"
+            def ping(self):
+                time.sleep(0.5)
+                return True
+
+        collection._base_class = NewServiceBase
+        collection.load_definitions()
+        started = collection.start_all(DEFAULT_OPTIONS)
+        assert started == ["second-service"]
 
 
     def test_stop_all_remove_false(self):

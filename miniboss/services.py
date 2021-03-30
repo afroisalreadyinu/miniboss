@@ -210,7 +210,7 @@ class ServiceCollection:
         network = docker.create_network(options.network.name)
         options.network.id = network.id
         self.running_context = RunningContext(self.all_by_name, options)
-        while not (self.running_context.done or self.running_context.failed_services):
+        while not self.running_context.done:
             for agent in self.running_context.ready_to_start:
                 agent.start_service()
             time.sleep(0.01)
