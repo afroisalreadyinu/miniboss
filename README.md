@@ -324,6 +324,9 @@ containers are restarted or a specific service is
 ## Todos
 
 - [ ] Add stop-only command
+- [ ] Add start-only command
+- [ ] Use pyright
+- [ ] Run tests in container (how?)
 - [ ] Exporting environment values for use in shell
 - [ ] Running one-off containers
 - [ ] Configuration object extrapolation
