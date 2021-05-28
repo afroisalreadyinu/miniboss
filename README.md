@@ -325,7 +325,7 @@ containers are restarted or a specific service is
 
 - [ ] Add stop-only command
 - [ ] Add start-only command
-- [ ] Use pyright
+- [ ] Type hints
 - [ ] Run tests in container (how?)
 - [ ] Exporting environment values for use in shell
 - [ ] Running one-off containers
