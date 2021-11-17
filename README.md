@@ -132,18 +132,18 @@ in which the Dockerfile and build context of a service resides in order to use
 this feature. You can also provide an alternative Dockerfile name. Here is an
 example:
 
-```
+```python
 class Application(miniboss.Service):
     name = "python-todo"
     image = "afroisalreadyin/python-todo:0.0.1"
     env = {"DB_URI": "postgresql://dbuser:dbpwd@appdb:5432/appdb"}
     dependencies = ["appdb"]
     ports = {8080: 8080}
-    build_from_directory = "python-todo/"
+    build_from = "python-todo/"
 	dockerfile = "Dockerfile"
 ```
 
-The `build_from_directory` option has to be a path relative to the main miniboss
+The `build_from` option has to be a path relative to the main miniboss
 file. With such a service configuration, you can run `./miniboss-main.py reload
 python-todo`, which will cause miniboss to build the container image, stop the
 running service container, and restart the new image. Since [the
@@ -318,7 +318,7 @@ containers are restarted or a specific service is
 - Don't start new if int-string env keys don't differ
 - Don't run pre-start if container found
 - Multiple clusters on single host with group id
-- Build container if tag doesn't exist and it has `build_from_directory`
+- Build container if tag doesn't exist and it has `build_from`
 - Better pypi readme with release notes
 
 ## Todos
