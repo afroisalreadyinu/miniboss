@@ -1,4 +1,4 @@
-abl-mode-test-command "pytest %s --tb=native"
+abl-mode-test-command "pytest %s -x --tb=native"
 abl-mode-install-command "pip install -r requirements_test.txt"
 abl-mode-test-file-regexp "test_.*.py*"
 abl-mode-test-path-module-class-separator "::"

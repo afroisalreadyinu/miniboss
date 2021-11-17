@@ -1,4 +1,4 @@
 -e .
 -r requirements.txt
 pylint==2.6.0
-pytest==5.4.3
+pytest==6.2.5
