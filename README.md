@@ -140,7 +140,7 @@ class Application(miniboss.Service):
     dependencies = ["appdb"]
     ports = {8080: 8080}
     build_from = "python-todo/"
-	dockerfile = "Dockerfile"
+    dockerfile = "Dockerfile"
 ```
 
 The `build_from` option has to be a path relative to the main miniboss
