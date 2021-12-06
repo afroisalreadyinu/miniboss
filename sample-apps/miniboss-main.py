@@ -24,7 +24,7 @@ class Database(miniboss.Service):
 
 class Application(miniboss.Service):
     name = "python-todo"
-    image = "afroisalreadyin/python-todo:0.0.1"
+    image = "python-todo:latest"
     env = {"DB_URI": "postgresql://dbuser:dbpwd@appdb:5432/appdb"}
     dependencies = ["appdb"]
     ports = {8080: 8080}

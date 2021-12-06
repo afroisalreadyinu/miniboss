@@ -242,21 +242,22 @@ miniboss.on_start_services(print_services)
 ## Ports and hosts
 
 miniboss starts services on an isolated bridge network, mapping no ports by
-default. The name of this service can be specified either with the
-`--network-name` argument when starting a group. If it's not specified, the name
-will be generated from the group name by prefixing it with `miniboss-`. On the
-per-group network, services can be contacted under the service name as hostname,
-on the ports they are listening on. The `appdb` Postgresql service above, for
-example, can be contacted on the port 5432, the default port on which Postgresql
-listens. This is the reason the host part of the `DB_URI` environment variable
-on the `python-todo` service is `appdb:5432`. If you want to reach `appdb` on
-the port `5433` from the host system, which would be necessary to implement the
-`ping` method as above, you need to make this mapping explicit with the `ports`
-field of the service definition. This field accepts a dictionary of integer keys
-and values. The key is the service container port, and the value is the host
-port. In the case of `appdb`, the Postgresql port of the container is mapped to
-port 5433 on the local machine, in order not to collide with any local
-Postgresql instances.
+default. The name of this service can be specified with the `--network-name`
+argument when starting a group. If it's not specified, the name will be
+generated from the group name by prefixing it with `miniboss-`. On the
+collection network, services can be contacted under the service name as
+hostname, on the ports they are listening on. The `appdb` Postgresql service
+[above](#usage), for example, can be contacted on the port 5432, the default
+port on which Postgresql listens. This is the reason the host part of the
+`DB_URI` environment variable on the `python-todo` service is `appdb:5432`. If
+you want to reach `appdb` on the port `5433` from the host system, which would
+be necessary to implement the `ping` method as above, you need to make this
+mapping explicit with the `ports` field of the service definition. This field
+accepts a dictionary of integer keys and values. The key is the service
+container port, and the value is the host port. In the case of `appdb`, the
+Postgresql port of the container is mapped to port 5433 on the local machine, in
+order not to collide with any local Postgresql instances. With this
+configuration, the `appdb` database can be accessed at `localhost:5433`.
 
 ### The global context
 
@@ -277,10 +278,9 @@ class DependantService(miniboss.Service):
 You can of course also programmatically access it as `Context['user_id']` once a
 value has been set.
 
-When a container set is started, the context that is generated is saved at the
-end in the file `.miniboss-context`, in order to be used when the same
-containers are restarted or a specific service is
-[reloaded](#reloading-a-service).
+When a service collection is started, the generated context is saved in the file
+`.miniboss-context`, in order to be used when the same containers are restarted
+or a specific service is [reloaded](#reloading-a-service).
 
 ## Service definition fields
 
@@ -297,7 +297,7 @@ containers are restarted or a specific service is
   image will be built each time the service is started.
 
 - **`dependencies`**: A list of the dependencies of a service by name. If there
-  are any invalid or circular dependencies, an error will be raised.
+  are any invalid or circular dependencies, an exception will be raised.
 
 - **`env`**: Environment variables to be injected into the service container, as
   a dict. The values of this dict can contain extrapolations from the global
@@ -313,7 +313,7 @@ containers are restarted or a specific service is
   `{directory: {"bind": mount_point, "mode": mode}}`. In both cases, `mode` is
   optional. See the [Using
   volumes](https://docker-py.readthedocs.io/en/stable/api.html#docker.api.container.ContainerApiMixin.create_container)
-  section of Python SDK documentation for details.
+  section of Docker Python SDK documentation for details.
 
 - **`always_start_new`**: Whether to create a new container each time a service
   is started or restart an existing but stopped container. Default value is
@@ -357,7 +357,7 @@ containers are restarted or a specific service is
 ## Todos
 
 - [x] Tests for CLI commands
-- [ ] Hook to run when everything is through
+- [x] Hook to run when everything is through
 - [ ] Add stop-only command
 - [ ] Add start-only command
 - [ ] Type hints
