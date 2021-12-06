@@ -6,7 +6,7 @@ with open('README.md', 'r', encoding='utf-8') as f:
 
 setup(
     name = "miniboss",
-    version = "0.4.0",
+    version = "0.4.1",
     author = "Ulas Turkmen",
     description = "Containerized app testing framework",
     long_description = long_description,
