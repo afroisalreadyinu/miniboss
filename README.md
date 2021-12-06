@@ -4,18 +4,18 @@
 
 # miniboss
 
-miniboss is a Python application for locally running multiple dependent docker
-services, individually rebuilding and restarting them, and managing application
-state with lifecycle hooks. Services definitions can be written in Python,
-allowing the use of programming logic instead of markup.
+miniboss is a Python application for locally running a collection of
+interdependent docker services, individually rebuilding and restarting them, and
+managing application state with lifecycle hooks. Services definitions can be
+written in Python, allowing the use of programming logic instead of markup.
 
 ## Why not docker-compose?
 
 First and foremost, good old Python instead of YAML. `docker-compose` is in the
 school of yaml-as-service-description, which means that going beyond a static
 description of a service set necessitates templates, or some kind of scripting.
-One could as well use a full-blown programming language, while trying to keep
-simple things simple. Another thing sorely missing in `docker-compose` is
+One could just as well use a full-blown programming language, while trying to
+keep simple things simple. Another thing sorely missing in `docker-compose` is
 lifecycle hooks, i.e. a mechanism whereby scripts can be executed when the state
 of a container changes. Lifecycle hooks have been
 [requested](https://github.com/docker/compose/issues/1809)
@@ -61,18 +61,19 @@ specifies a name for this group of services. Setting the group name with
 `miniboss.group_name` is required. The group name is used to identify the
 services and network defined in a file; you will see it in a number of places
 such as container and network names when miniboss creates a cluster. It also
-enables multiple groups on the same host to be managed by miniboss.
+enables multiple collections on the same host to be managed by miniboss.
 
 A **service** is defined by subclassing `miniboss.Service` and overriding, in
 the minimal case, the fields `image` and `name`. The `env` field specifies the
-environment variables; as in the case of the `appdb` service, you can use
-ordinary variables in this and any other value. The other available fields are
+environment variables. As in the case of the `appdb` service, you can use
+ordinary variables anywhere Python accepts them. The other available fields are
 explained in the section [Service definition
-fields](#service-definition-fields). Here, we are creating two services: The
-application service `python-todo` (a simple Flask todo application defined in
-the `sample-apps` directory) depends on `appdb` (a Postgresql container),
-specified through the `dependencies` field. As in `docker-compose`, this means
-that `python-todo` will get started after `appdb` reaches running status.
+fields](#service-definition-fields). In the [above example](#usage), we are
+creating two services: The application service `python-todo` (a simple Flask
+todo application defined in the `sample-apps` directory) depends on `appdb` (a
+Postgresql container), specified through the `dependencies` field. As in
+`docker-compose`, this means that `python-todo` will get started after `appdb`
+reaches running status.
 
 The `miniboss.cli` function is the main entry point; you need to call it in the
 main section of your script. Let's run the script above without arguments, which
@@ -89,7 +90,7 @@ Commands:
   stop
 ```
 
-We can start our small ensemble of services by running `./miniboss-main.py
+We can start our small collection of services by running `./miniboss-main.py
 start`. After spitting out some logging text, you will see that starting the
 containers failed, with the `python-todo` service throwing an error that it
 cannot reach the database. The reason for this error is that the Postgresql
@@ -98,8 +99,8 @@ yet. The standard way of dealing with this issue is to include backoff code in
 your application that checks on the database port regularly, until the
 connection is accepted. `miniboss` offers an alternative with [lifecycle
 events](#lifecycle-events). For the time being, you can simply rerun
-`./miniboss-main.py start`, which will restart only the `python-todo`
-service, as the other one is already running. You should be able to navigate to
+`./miniboss-main.py start`, which will restart only the `python-todo` service,
+as the other one is already running. You should be able to navigate to
 `http://localhost:8080` and view the todo app page.
 
 You can also exclude services from the list of services to be started with the
@@ -111,18 +112,18 @@ are registered as failed.
 
 ### Stopping services
 
-Once you are done working with a container cluster, you can stop the running
-services with `miniboss-main.py stop`. This will stop the services in the
-reverse order of dependency, i.e. first `python-todo` and then `appdb`.
-Exclusion is possible also when stopping services with the same `--exclude`
-argument. Running `./miniboss-main.py stop --exclude appdb` will stop only the
-`python-todo` service. If you exclude a service whose dependency will be
-stopped, you will get an error. If, in addition to stopping the service
-containers, you want remove them, include the option `--remove`. If you don't
-remove the containers, miniboss will restart the existing containers (modulo
-certain conditions) instead of creating new ones the next time it's called with
-`start`. This behavior can be modified with the `always_start_new` field; see
-the details in [Service definition fields](#service-definition-fields).
+Once you are done working with a collection, you can stop the running services
+with `miniboss-main.py stop`. This will stop the services in the reverse order
+of dependency, i.e. first `python-todo` and then `appdb`. Exclusion is possible
+also when stopping services with the same `--exclude` argument. Running
+`./miniboss-main.py stop --exclude appdb` will stop only the `python-todo`
+service. If you exclude a service whose dependency will be stopped, you will get
+an error. If, in addition to stopping the service containers, you want to remove
+them, include the option `--remove`. If you don't remove the containers,
+miniboss will restart the existing containers (modulo changes in service
+definition) instead of creating new ones the next time it's called with `start`.
+This behavior can be modified with the `always_start_new` field; see the details
+in [Service definition fields](#service-definition-fields).
 
 ### Reloading a service
 
@@ -153,12 +154,18 @@ values used in the service definition are available to the new container.
 ## Lifecycle events
 
 One of the differentiating feature of miniboss is lifecycle events, which are
-hooks that can be customized to execute code at certain points in a service's
-lifecycle. `miniboss.Service` has two methods that can be overriden in order to
-correctly change states and execute actions on the container:
+hooks that can be customized to execute code at certain points in a service's or
+the whole collection's lifecycle.
+
+### Per-service events
+
+For per-service events, `miniboss.Service` has three methods that can be
+overriden in order to correctly change states and execute actions on the
+container:
 
 - **`Service.pre_start()`**: Executed before the service is started. Can be used
-  for things like initializing mount directory contents.
+  for things like initializing mount directory contents or downloading online
+  content.
 
 - **`Service.ping()`**: Executed repeatedly right after the service starts with
   a 0.1 second delay between executions. If this method does not return `True`
@@ -205,6 +212,32 @@ One thing to pay attention to is that, in the call to `psycopg2.connect`, we are
 using `localhost:5433` as host and port, whereas the `python-todo` environment
 variable `DBURI` has `appdb:5433` instead. This is because the `ping` method is
 executed on the host computer. The next section explains the details.
+
+### Collection events
+
+It is possible to hook into collection change commands using the following
+hooks. You can call them on the base `miniboss` module and set a hook by passing
+it in as the sole argument, e.g. as follows:
+
+```python
+import miniboss
+
+def print_services(service_list):
+    print("Started ", ' '.join(service_list))
+
+miniboss.on_start_services(print_services)
+```
+
+- **`on_start_services`** hook is called after the `miniboss.start` command is
+  executed. The single argument is a list of the names of the services that were
+  successfully started.
+
+- **`on_stop_services`** hook is called after the `miniboss.stop` command is
+  executed. The single argument is a list of the services that were stopped.
+
+- **`on_reload_service`** hook is called after the `miniboss.reload` command is
+  executed. The single argument is the name of the service that was reloaded.
+
 
 ## Ports and hosts
 

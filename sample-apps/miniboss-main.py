@@ -2,6 +2,8 @@
 import miniboss
 import psycopg2
 
+miniboss.group_name('readme-demo')
+
 class Database(miniboss.Service):
     name = "appdb"
     image = "postgres:10.6"
@@ -28,6 +30,12 @@ class Application(miniboss.Service):
     ports = {8080: 8080}
     stop_signal = "SIGINT"
     build_from = 'python-todo'
+
+def print_info(services):
+    if Application.name in services:
+        print("TODO app can be accessed at http://localhost:8080")
+
+miniboss.on_start_services(print_info)
 
 if __name__ == "__main__":
     miniboss.cli()
