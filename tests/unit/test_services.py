@@ -817,6 +817,26 @@ class ServiceCommandTests(unittest.TestCase):
         options = self.collection.options
         assert options.network.name == 'miniboss-test'
 
+    def test_start_services_hook(self):
+        sentinel = None
+        def hook(services):
+            nonlocal sentinel
+            sentinel = services
+        services.on_start_services(hook)
+        services.start_services('/tmp', [], "miniboss", 50)
+        assert sentinel == ['one', 'two']
+
+    def test_start_services_exception(self):
+        sentinel = None
+        def hook(services):
+            nonlocal sentinel
+            sentinel = services
+            raise ValueError("Hoho")
+        services.on_start_services(hook)
+        services.start_services('/tmp', [], "miniboss", 50)
+        assert sentinel == ['one', 'two']
+
+
     def test_load_context_on_new(self):
         directory = tempfile.mkdtemp()
         with open(os.path.join(directory, ".miniboss-context"), "w") as context_file:

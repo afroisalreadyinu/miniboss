@@ -246,6 +246,15 @@ class ServiceCollection:
                     queue.append(dependant)
         self.all_by_name = {service.name: service for service in required}
 
+def noop(*args, **kwargs):
+    pass
+
+_start_services_hook = noop
+
+def on_start_services(hook_func):
+    global _start_services_hook
+    _start_services_hook = hook_func
+
 def start_services(maindir, exclude, network_name, timeout):
     if types.group_name is None:
         raise MinibossException(
@@ -264,6 +273,14 @@ def start_services(maindir, exclude, network_name, timeout):
     service_names = collection.start_all(options)
     logger.info("Started services: %s", ", ".join(service_names))
     Context.save_to(maindir)
+    try:
+        _start_services_hook(service_names)
+    except KeyboardInterrupt:
+        logger.info("Interrupted on_start_services hook")
+        return
+    except:
+        logger.exception("Error running on_start_services hook")
+
 
 
 def stop_services(maindir, exclude, network_name, remove, timeout):
