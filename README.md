@@ -354,10 +354,13 @@ or a specific service is [reloaded](#reloading-a-service).
 - Build container if tag doesn't exist and it has `build_from`
 - Better pypi readme with release notes
 
+### 0.4.1
+
+- Tests for CLI commands
+- Collection lifecycle hooks
+
 ## Todos
 
-- [x] Tests for CLI commands
-- [x] Hook to run when everything is through
 - [ ] Add stop-only command
 - [ ] Add start-only command
 - [ ] Type hints
