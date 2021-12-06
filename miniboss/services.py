@@ -317,6 +317,13 @@ def stop_services(maindir, exclude, network_name, remove, timeout):
     except: # pylint: disable=bare-except
         logger.exception("Error running on_stop_services hook")
 
+
+_reload_service_hook = noop
+
+def on_reload_service(hook_func):
+    global _reload_service_hook
+    _reload_service_hook = hook_func
+
 # pylint: disable=too-many-arguments
 def reload_service(maindir, service, network_name, remove, timeout):
     if types.group_name is None:
@@ -341,3 +348,10 @@ def reload_service(maindir, service, network_name, remove, timeout):
     start_collection.load_definitions()
     start_collection.start_all(options)
     Context.save_to(maindir)
+    try:
+        _reload_service_hook(service)
+    except KeyboardInterrupt:
+        logger.info("Interrupted on_stop_services hook")
+        return
+    except: # pylint: disable=bare-except
+        logger.exception("Error running on_stop_services hook")

@@ -864,7 +864,7 @@ class ServiceCommandTests(unittest.TestCase):
         services.start_services('/tmp', [], "miniboss", 50)
         assert sentinel == ['one', 'two']
 
-    def test_start_services_exception(self):
+    def test_start_services_hook_exception(self):
         sentinel = None
         def hook(services):
             nonlocal sentinel
@@ -887,7 +887,7 @@ class ServiceCommandTests(unittest.TestCase):
         services.stop_services('/tmp', ['test'], "miniboss", False, 50)
         assert sentinel == ["one", "two"]
 
-    def test_stop_services_exception(self):
+    def test_stop_services_hook_exception(self):
         sentinel = None
         def hook(services):
             nonlocal sentinel
@@ -920,6 +920,25 @@ class ServiceCommandTests(unittest.TestCase):
     def test_reload_service_network_name_none(self):
         services.reload_service('/tmp', 'the-service', None, False, 50)
         assert self.collection.options.network.name == 'miniboss-test'
+
+    def test_reload_service_hook(self):
+        sentinel = None
+        def hook(service_name):
+            nonlocal sentinel
+            sentinel = service_name
+        services.on_reload_service(hook)
+        services.reload_service('/tmp', 'the-service', "miniboss", False, 50)
+        assert sentinel == 'the-service'
+
+    def test_stop_services_hook_exception(self):
+        sentinel = None
+        def hook(services):
+            nonlocal sentinel
+            sentinel = services
+            raise ValueError("Hoho")
+        services.on_reload_service(hook)
+        services.reload_service('/tmp', 'the-service', "miniboss", False, 50)
+        assert sentinel == 'the-service'
 
     def test_reload_service_save_and_load_context(self):
         directory = tempfile.mkdtemp()
