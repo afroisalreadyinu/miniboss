@@ -246,7 +246,7 @@ class ServiceCollection:
                     queue.append(dependant)
         self.all_by_name = {service.name: service for service in required}
 
-def noop(*args, **kwargs):
+def noop(*_, **__):
     pass
 
 _start_services_hook = noop
@@ -278,7 +278,7 @@ def start_services(maindir, exclude, network_name, timeout):
     except KeyboardInterrupt:
         logger.info("Interrupted on_start_services hook")
         return
-    except:
+    except: # pylint: disable=bare-except
         logger.exception("Error running on_start_services hook")
 
 
