@@ -224,12 +224,15 @@ class ServiceCollection:
     def stop_all(self, options: Options):
         docker = DockerClient.get_client()
         self.running_context = RunningContext(self.all_by_name, options)
+        stopped = []
         while not (self.running_context.done or self.running_context.failed_services):
             for agent in self.running_context.ready_to_stop:
                 agent.stop_service()
+                stopped.append(agent.service.name)
             time.sleep(0.01)
         if options.remove and not self.excluded:
             docker.remove_network(options.network.name)
+        return stopped
 
 
     def update_for_base_service(self, service_name):
@@ -282,6 +285,11 @@ def start_services(maindir, exclude, network_name, timeout):
         logger.exception("Error running on_start_services hook")
 
 
+_stop_services_hook = noop
+
+def on_stop_services(hook_func):
+    global _stop_services_hook
+    _stop_services_hook = hook_func
 
 def stop_services(maindir, exclude, network_name, remove, timeout):
     if types.group_name is None:
@@ -298,9 +306,16 @@ def stop_services(maindir, exclude, network_name, remove, timeout):
     collection = ServiceCollection()
     collection.load_definitions()
     collection.exclude_for_stop(exclude)
-    collection.stop_all(options)
+    stopped = collection.stop_all(options)
     if remove:
         Context.remove_file(maindir)
+    try:
+        _stop_services_hook(stopped)
+    except KeyboardInterrupt:
+        logger.info("Interrupted on_stop_services hook")
+        return
+    except: # pylint: disable=bare-except
+        logger.exception("Error running on_stop_services hook")
 
 # pylint: disable=too-many-arguments
 def reload_service(maindir, service, network_name, remove, timeout):

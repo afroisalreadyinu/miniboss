@@ -672,7 +672,8 @@ class ServiceCollectionTests(unittest.TestCase):
                           remove=True,
                           run_dir='/etc',
                           build=[])
-        collection.stop_all(options)
+        retval = collection.stop_all(options)
+        assert retval == ['service1']
         assert container1.stopped
         assert container1.removed_at is not None
         # service2 was excluded
@@ -763,6 +764,7 @@ class ServiceCommandTests(unittest.TestCase):
             def stop_all(self, options):
                 self.options = options
                 self.stopped = True
+                return ["one", "two"]
             def reload_service(self, service_name, options):
                 self.options = options
                 self.reloaded = service_name
@@ -853,9 +855,47 @@ class ServiceCommandTests(unittest.TestCase):
         assert not self.collection.options.remove
         assert self.collection.excluded == ['test']
 
+    def test_start_services_hook(self):
+        sentinel = None
+        def hook(services):
+            nonlocal sentinel
+            sentinel = services
+        services.on_start_services(hook)
+        services.start_services('/tmp', [], "miniboss", 50)
+        assert sentinel == ['one', 'two']
+
+    def test_start_services_exception(self):
+        sentinel = None
+        def hook(services):
+            nonlocal sentinel
+            sentinel = services
+            raise ValueError("Hoho")
+        services.on_start_services(hook)
+        services.start_services('/tmp', [], "miniboss", 50)
+        assert sentinel == ['one', 'two']
+
     def test_stop_services_network_name_none(self):
         services.stop_services('/tmp', ['test'], None, False, 50)
         assert self.collection.options.network.name == 'miniboss-test'
+
+    def test_stop_services_hook(self):
+        sentinel = None
+        def hook(services):
+            nonlocal sentinel
+            sentinel = services
+        services.on_stop_services(hook)
+        services.stop_services('/tmp', ['test'], "miniboss", False, 50)
+        assert sentinel == ["one", "two"]
+
+    def test_stop_services_exception(self):
+        sentinel = None
+        def hook(services):
+            nonlocal sentinel
+            sentinel = services
+            raise ValueError("Hoho")
+        services.on_stop_services(hook)
+        services.stop_services('/tmp', ['test'], "miniboss", False, 50)
+        assert sentinel == ['one', 'two']
 
     def test_stop_services_remove_context(self):
         directory = tempfile.mkdtemp()
