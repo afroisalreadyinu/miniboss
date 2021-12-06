@@ -323,6 +323,8 @@ containers are restarted or a specific service is
 
 ## Todos
 
+- [x] Tests for CLI commands
+- [ ] Hook to run when everything is through
 - [ ] Add stop-only command
 - [ ] Add start-only command
 - [ ] Type hints
@@ -334,8 +336,3 @@ containers are restarted or a specific service is
 - [ ] Running tests once system started
 - [ ] Using context values in tests
 - [ ] Dependent test suites and setups
-- [x] Bug: context values when reloading a service
-- [x] Derive exceptions from a base `MinibossException`
-- [x] Don't use existing container if env changed
-- [x] Build and restart a container
-- [x] Stop signal as an option on service def
