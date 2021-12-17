@@ -361,6 +361,7 @@ or a specific service is [reloaded](#reloading-a-service).
 
 ## Todos
 
+- [ ] Making easier to test on the cloud??
 - [ ] Add stop-only command
 - [ ] Add start-only command
 - [ ] Type hints
