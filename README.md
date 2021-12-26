@@ -2,7 +2,7 @@
 
 [![PyPI version](https://badge.fury.io/py/miniboss.svg)](https://badge.fury.io/py/miniboss)
 
-<img src="https://github.com/afroisalreadyinu/miniboss/raw/logo/logo.png" width="200">
+<img src="https://github.com/afroisalreadyinu/miniboss/raw/master/logo.png" width="200">
 
 # miniboss
 
