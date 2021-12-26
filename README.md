@@ -2,6 +2,8 @@
 
 [![PyPI version](https://badge.fury.io/py/miniboss.svg)](https://badge.fury.io/py/miniboss)
 
+<img src="https://github.com/afroisalreadyinu/miniboss/raw/logo/logo.png" width="200">
+
 # miniboss
 
 miniboss is a Python application for locally running a collection of
