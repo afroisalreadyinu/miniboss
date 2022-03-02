@@ -358,6 +358,12 @@ or a specific service is [reloaded](#reloading-a-service).
 - Tests for CLI commands
 - Collection lifecycle hooks
 
+### 0.4.2
+
+- Removed group name requirement
+- Logging fixes
+- Sample app fixes
+
 ## Todos
 
 - [ ] Making easier to test on the cloud??
