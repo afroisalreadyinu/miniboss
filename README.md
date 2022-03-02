@@ -25,6 +25,14 @@ of a container changes. Lifecycle hooks have been
 [times](https://github.com/compose-spec/compose-spec/issues/84), but were not
 deemed to be in the domain of `docker-compose`.
 
+## Installation
+
+miniboss is on pypi; you can install it with the following:
+
+```
+pip install miniboss
+```
+
 ## Usage
 
 Here is a very simple service specification:
