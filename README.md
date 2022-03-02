@@ -11,8 +11,6 @@ interdependent docker services, individually rebuilding and restarting them, and
 managing application state with lifecycle hooks. Services definitions can be
 written in Python, allowing the use of programming logic instead of markup.
 
-[![asciicast](https://asciinema.org/a/F85QQ1pJgnvjr79BbZjdb03Hc.svg)](https://asciinema.org/a/F85QQ1pJgnvjr79BbZjdb03Hc)
-
 ## Why not docker-compose?
 
 First and foremost, good old Python instead of YAML. `docker-compose` is in the
