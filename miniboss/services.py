@@ -8,7 +8,7 @@ from miniboss.docker_client import DockerClient
 from miniboss.types import Options, Network
 from miniboss.running_context import RunningContext
 from miniboss.context import Context
-from miniboss.exceptions import MinibossException, ServiceLoadError, ServiceDefinitionError
+from miniboss.exceptions import ServiceLoadError, ServiceDefinitionError
 
 logging.basicConfig(
     level=logging.INFO,
@@ -259,10 +259,7 @@ def on_start_services(hook_func):
     _start_services_hook = hook_func
 
 def start_services(maindir, exclude, network_name, timeout):
-    if types.group_name is None:
-        raise MinibossException(
-            "Group name is not set; set it with miniboss.group_name in the main script"
-        )
+    types.update_group_name(maindir)
     Context.load_from(maindir)
     collection = ServiceCollection()
     collection.load_definitions()
@@ -292,10 +289,7 @@ def on_stop_services(hook_func):
     _stop_services_hook = hook_func
 
 def stop_services(maindir, exclude, network_name, remove, timeout):
-    if types.group_name is None:
-        raise MinibossException(
-            "Group name is not set; set it with miniboss.group_name in the main script"
-        )
+    types.update_group_name(maindir)
     logger.info("Stopping services (excluded: %s)", "none" if not exclude else ",".join(exclude))
     network_name = network_name or "miniboss-{}".format(types.group_name)
     options = Options(network=Network(name=network_name, id=''),
@@ -326,10 +320,7 @@ def on_reload_service(hook_func):
 
 # pylint: disable=too-many-arguments
 def reload_service(maindir, service, network_name, remove, timeout):
-    if types.group_name is None:
-        raise MinibossException(
-            "Group name is not set; set it with miniboss.group_name in the main script"
-        )
+    types.update_group_name(maindir)
     network_name = network_name or "miniboss-{}".format(types.group_name)
     options = Options(network=Network(name=network_name, id=''),
                       timeout=timeout,

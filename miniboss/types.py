@@ -1,5 +1,10 @@
+from pathlib import Path
+
 import attr
 from attr.validators import instance_of, deep_iterable
+from slugify import slugify
+
+from miniboss.exceptions import MinibossException
 
 @attr.s(kw_only=True)
 class Network:
@@ -68,8 +73,16 @@ class Actions:
 
 group_name = None
 
+def update_group_name(maindir):
+    global group_name
+    if group_name is None:
+        group_name = slugify(Path(maindir).name)
+    return group_name
+
 def set_group_name(name):
     global group_name
+    if group_name is not None:
+        raise MinibossException("Group name has already been set, it cannot be changed")
     group_name = name
 
 def _unset_group_name():

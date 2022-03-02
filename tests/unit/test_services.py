@@ -6,9 +6,11 @@ from types import SimpleNamespace as Bunch
 import tempfile
 import pathlib
 import time
+import shutil
 
 import attr
 import pytest
+from slugify import slugify
 
 from miniboss import types
 from miniboss.services import (connect_services,
@@ -777,18 +779,28 @@ class ServiceCommandTests(unittest.TestCase):
         services.ServiceCollection = lambda: self.collection
         types.set_group_name('test')
         Context._reset()
+        self.workdir = tempfile.mkdtemp()
 
     def tearDown(self):
         types._unset_group_name()
+        shutil.rmtree(self.workdir)
 
-    def test_error_without_group_name(self):
-        types.group_name = None
-        with pytest.raises(exceptions.MinibossException):
-            services.start_services('/tmp', [], "miniboss", 50)
-        with pytest.raises(exceptions.MinibossException):
-            services.stop_services('/tmp', ['test'], "miniboss", False, 50)
-        with pytest.raises(exceptions.MinibossException):
-            services.reload_service('/tmp', 'the-service', "miniboss", False, 50)
+    def test_update_group_name_on_start(self):
+        types._unset_group_name()
+        services.start_services(self.workdir, [], "miniboss", 50)
+        assert types.group_name == slugify(pathlib.Path(self.workdir).name)
+
+    def test_update_group_name_on_stop(self):
+        workdir = tempfile.mkdtemp()
+        types._unset_group_name()
+        services.stop_services(self.workdir, ['test'], "miniboss", False, 50)
+        assert types.group_name == slugify(pathlib.Path(self.workdir).name)
+
+    def test_update_group_name_on_reload(self):
+        workdir = tempfile.mkdtemp()
+        types._unset_group_name()
+        services.reload_service(self.workdir, 'the-service', "miniboss", False, 50)
+        assert types.group_name == slugify(pathlib.Path(self.workdir).name)
 
     def test_start_services_exclude(self):
         services.start_services("/tmp", ['blah'], "miniboss", 50)

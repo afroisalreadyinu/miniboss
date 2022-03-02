@@ -56,11 +56,11 @@ if __name__ == "__main__":
 ```
 
 The first use of miniboss is in the call to `miniboss.group_name`, which
-specifies a name for this group of services. Setting the group name with
-`miniboss.group_name` is required. The group name is used to identify the
-services and network defined in a file; you will see it in a number of places
-such as container and network names when miniboss creates a cluster. It also
-enables multiple collections on the same host to be managed by miniboss.
+specifies a name for this group of services. If you don't set it, sluggified
+form of the directory name will be used. Group name is used to identify the
+services and the network defined in a miniboss file. Setting it manually to a
+non-default value will allow miniboss to manage multiple collections in the same
+directory.
 
 A **service** is defined by subclassing `miniboss.Service` and overriding, in
 the minimal case, the fields `image` and `name`. The `env` field specifies the
