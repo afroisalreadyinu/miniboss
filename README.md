@@ -25,9 +25,6 @@ of a container changes. Lifecycle hooks have been
 [times](https://github.com/compose-spec/compose-spec/issues/84), but were not
 deemed to be in the domain of `docker-compose`.
 
-The intention is to develop this package to a full-blown distributed testing
-framework, which will probably take some time.
-
 ## Usage
 
 Here is a very simple service specification:
@@ -146,8 +143,8 @@ class Application(miniboss.Service):
     dockerfile = "Dockerfile"
 ```
 
-The `build_from` option has to be a path relative to the main miniboss
-file. With such a service configuration, you can run `./miniboss-main.py reload
+The `build_from` option has to be a path relative to the main miniboss file.
+With such a service configuration, you can run `./miniboss-main.py reload
 python-todo`, which will cause miniboss to build the container image, stop the
 running service container, and restart the new image. Since [the
 context](#the-global-context) generated at start is saved in a file, any context
