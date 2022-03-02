@@ -27,7 +27,8 @@ deemed to be in the domain of `docker-compose`.
 
 ## Installation
 
-miniboss is on pypi; you can install it with the following:
+miniboss is [on PyPi](https://pypi.org/project/miniboss/); you can install it
+with the following:
 
 ```
 pip install miniboss
