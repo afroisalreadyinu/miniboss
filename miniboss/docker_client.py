@@ -39,7 +39,7 @@ class DockerClient:
         networks = self.lib_client.networks.list(names=[network_name])
         if networks:
             networks[0].remove()
-            logging.info("Removed network %s", network_name)
+            logger.info("Removed network %s", network_name)
 
 
     def existing_on_network(self, name, network: Network):

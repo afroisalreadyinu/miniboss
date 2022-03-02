@@ -1,6 +1,9 @@
 #! /usr/bin/env python3
 import miniboss
 import psycopg2
+import logging
+
+logging.basicConfig(level=logging.INFO, format='%(message)s')
 
 miniboss.group_name('readme-demo')
 

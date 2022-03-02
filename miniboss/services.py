@@ -10,11 +10,6 @@ from miniboss.running_context import RunningContext
 from miniboss.context import Context
 from miniboss.exceptions import ServiceLoadError, ServiceDefinitionError
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='[%(asctime)s] [%(name)s] %(levelname)s - %(message)s'
-)
-
 logger = logging.getLogger(__name__)
 
 KEYCLOAK_PORT = 8090

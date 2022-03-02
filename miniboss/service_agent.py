@@ -206,14 +206,14 @@ class ServiceAgent(threading.Thread):
         existings = client.existing_on_network(self.container_name_prefix,
                                                self.options.network)
         if not existings:
-            logging.info("No containers to stop for %s", self.service.name)
+            logger.info("No containers to stop for %s", self.service.name)
         for existing in existings:
             if existing.status == 'running':
                 existing.stop(timeout=self.options.timeout)
-                logging.info("Stopped container %s", existing.name)
+                logger.info("Stopped container %s", existing.name)
             if remove:
                 existing.remove()
-                logging.info("Removed container %s", existing.name)
+                logger.info("Removed container %s", existing.name)
 
     def stop_container(self):
         self._stop_container(remove=self.options.remove)
