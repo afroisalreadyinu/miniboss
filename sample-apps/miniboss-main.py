@@ -3,7 +3,7 @@ import miniboss
 import psycopg2
 import logging
 
-logging.basicConfig(level=logging.INFO, format='%(message)s')
+logging.basicConfig(level=logging.INFO, format='[%(name)s] %(message)s')
 
 miniboss.group_name('readme-demo')
 
