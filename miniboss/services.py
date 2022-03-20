@@ -69,7 +69,8 @@ class ServiceMeta(type):
                         raise ServiceDefinitionError(
                             "Volume definitions have to specify 'bind' key")
             else:
-                raise ServiceDefinitionError("Volumes have to be defined either as a list of strings or a dict")
+                raise ServiceDefinitionError(
+                    "Volumes have to be defined either as a list of strings or a dict")
         return super().__new__(cls, name, bases, attrdict)
 
 
