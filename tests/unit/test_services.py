@@ -106,6 +106,11 @@ class ServiceDefinitionTests(unittest.TestCase):
             class NewService(Service):
                 name = "yes"
                 image = "yes"
+                volumes = "Hello"
+        with pytest.raises(ServiceDefinitionError):
+            class NewService(Service):
+                name = "yes"
+                image = "yes"
                 volumes = ["vol1", 123]
 
         with pytest.raises(ServiceDefinitionError):
