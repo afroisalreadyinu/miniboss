@@ -17,7 +17,7 @@ OSTKREUZ_PORT = 8080
 ALLOWED_STOP_SIGNALS = ["SIGINT", "SIGTERM", "SIGKILL", "SIGQUIT"]
 
 class ServiceMeta(type):
-    # pylint: disable=too-many-branches
+    # pylint: disable=too-many-branches,too-many-statements
     def __new__(cls, name, bases, attrdict):
         if not bases:
             return super().__new__(cls, name, bases, attrdict)
@@ -53,6 +53,33 @@ class ServiceMeta(type):
             if signal_name not in ALLOWED_STOP_SIGNALS:
                 raise ServiceDefinitionError(
                     "Stop signal not allowed: {:s}".format(signal_name))
+        if "entrypoint" in attrdict:
+            entrypoint = attrdict['entrypoint']
+            if isinstance(entrypoint, list):
+                if not all(isinstance(x, str) for x in entrypoint):
+                    msg = ("Field 'entrypoint' of service class {:s} must " \
+                           "be a string or list of strings".format(name))
+                    raise ServiceDefinitionError(msg)
+            elif not isinstance(entrypoint, str):
+                raise ServiceDefinitionError(
+                    "Field 'entrypoint' of service class {:s} must " \
+                    "be a string or list of strings".format(name))
+        if "cmd" in attrdict:
+            cmd = attrdict['cmd']
+            if isinstance(cmd, list):
+                if not all(isinstance(x, str) for x in cmd):
+                    raise ServiceDefinitionError(
+                        "Field 'cmd' of service class {:s} must " \
+                        "be a string or list of strings".format(name))
+            elif not isinstance(cmd, str):
+                raise ServiceDefinitionError(
+                    "Field 'cmd' of service class {:s} must " \
+                    "be a string or list of strings".format(name))
+        if "user" in attrdict:
+            user = attrdict['user']
+            if not isinstance(user, str):
+                raise ServiceDefinitionError(
+                    "Field 'user' of service class {:s} must be a string".format(name))
         if "volumes" in attrdict:
             volumes = attrdict["volumes"]
             if isinstance(volumes, list):
@@ -85,6 +112,9 @@ class Service(metaclass=ServiceMeta):
     build_from = None
     dockerfile = "Dockerfile"
     volumes = {}
+    entrypoint = ""
+    cmd = ""
+    user = ""
 
     # pylint: disable=no-self-use
     def ping(self):

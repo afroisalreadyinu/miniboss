@@ -304,6 +304,19 @@ or a specific service is [reloaded](#reloading-a-service).
   is `latest`, and the `build_from` directory option is specified, the container
   image will be built each time the service is started.
 
+- **`entrypoint`**: Container entrypoint, the executable that is run when the
+  container starts. See [Docker
+  documentation](https://docs.docker.com/engine/reference/builder/#entrypoint) for
+  details.
+
+- **`cmd`**: `CMD` option for a container. See [Docker
+  documentation](https://docs.docker.com/engine/reference/builder/#cmd) for
+  details.
+
+- **`user`**: `USER` option for a container See [Docker
+  documentation](https://docs.docker.com/engine/reference/builder/#user) for
+  details.
+
 - **`dependencies`**: A list of the dependencies of a service by name. If there
   are any invalid or circular dependencies, an exception will be raised.
 
@@ -375,9 +388,10 @@ or a specific service is [reloaded](#reloading-a-service).
 
 ## Todos
 
-- [ ] Making easier to test on the cloud??
+- [x] Entrypoint, cmd and user fields on service
 - [ ] Add stop-only command
 - [ ] Add start-only command
+- [ ] Making easier to test on the cloud??
 - [ ] Type hints
 - [ ] Run tests in container (how?)
 - [ ] Exporting environment values for use in shell

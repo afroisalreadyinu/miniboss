@@ -1,12 +1,16 @@
+from __future__ import annotations
 import logging
 import random
 import time
+from typing import TYPE_CHECKING
 
 import docker
 import docker.errors
 
 from miniboss.exceptions import DockerException, ContainerStartException
 from miniboss.types import Network
+if TYPE_CHECKING:
+    from miniboss.services import Service
 
 logger = logging.getLogger(__name__)
 
@@ -93,10 +97,7 @@ class DockerClient:
                 tag, api_error.explanation)) from None
 
 
-    def run_service_on_network(self,
-                               name_prefix,
-                               service,  # service: services.Service
-                               network: Network):
+    def run_service_on_network(self, name_prefix, service: Service, network: Network):
         container_name = "{:s}-{:s}".format(name_prefix, ''.join(random.sample(DIGITS, 4)))
         networking_config = self.lib_client.api.create_networking_config({
             network.name: self.lib_client.api.create_endpoint_config(aliases=[service.name]),
@@ -104,17 +105,22 @@ class DockerClient:
         host_config=self.lib_client.api.create_host_config(port_bindings=service.ports,
                                                            binds=service.volumes)
         self.check_image(service.image)
+        kw_arguments = {'detach': True,
+                        'name': container_name,
+                        'ports': list(service.ports.keys()),
+                        'environment': service.env,
+                        'host_config': host_config,
+                        'networking_config': networking_config,
+                        'volumes': service.volume_def_to_binds(),
+                        'stop_signal': service.stop_signal}
+        if service.entrypoint:
+            kw_arguments['entrypoint'] = service.entrypoint
+        if service.cmd:
+            kw_arguments['command'] = service.cmd
+        if service.user:
+            kw_arguments['user'] = service.user
         try:
-            container = self.lib_client.api.create_container(
-                service.image,
-                detach=True,
-                name=container_name,
-                ports=list(service.ports.keys()),
-                environment=service.env,
-                host_config=host_config,
-                networking_config=networking_config,
-                volumes=service.volume_def_to_binds(),
-                stop_signal=service.stop_signal)
+            container = self.lib_client.api.create_container(service.image, **kw_arguments)
         except docker.errors.ImageNotFound:
             msg = "Image {:s} could not be found; please make sure it exists".format(service.image)
             raise DockerException(msg) from None
