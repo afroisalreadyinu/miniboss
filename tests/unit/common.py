@@ -28,7 +28,7 @@ class FakeRunningContext:
 
 class FakeService:
     image = 'not/used'
-    dependants = []
+    _dependants = []
     ports = {}
     env = {}
     always_start_new = False

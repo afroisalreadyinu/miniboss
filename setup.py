@@ -15,6 +15,7 @@ setup(
     python_requires='>3.8.0',
     tests_require = ["pytest>5.4"],
     packages=['miniboss'],
+    package_data={"miniboss": ["py.typed"]},
     url = "https://github.com/afroisalreadyinu/miniboss",
     license = "MIT",
     classifiers = [

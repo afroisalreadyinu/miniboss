@@ -196,6 +196,16 @@ class ConnectServicesTests(unittest.TestCase):
         with pytest.raises(ServiceLoadError):
             connect_services(services)
 
+    def test_mix_service_and_name(self):
+        service_one = Bunch(name="service_one", image="hello", dependencies=[])
+        services = [service_one,
+                    Bunch(name="service_two", image="hello", dependencies=[service_one]),
+                    Bunch(name="goodbye", image="goodbye", dependencies=[service_one, "service_two"])]
+        by_name = connect_services(services)
+        assert len(by_name) == 3
+        assert 'goodbye' in by_name
+        assert len(by_name['goodbye'].dependencies) == 2
+
     def test_exception_on_invalid_dependency(self):
         services = [Bunch(name="hello", image="hello", dependencies=[]),
                     Bunch(name="goodbye", image="goodbye", dependencies=["not_hello"])]
@@ -210,14 +220,14 @@ class ConnectServicesTests(unittest.TestCase):
         assert len(by_name) == 3
         hello = by_name['hello']
         assert hello.dependencies == []
-        assert len(hello.dependants) == 2
-        assert by_name['goodbye'] in hello.dependants
-        assert by_name['howareyou'] in hello.dependants
+        assert len(hello._dependants) == 2
+        assert by_name['goodbye'] in hello._dependants
+        assert by_name['howareyou'] in hello._dependants
         howareyou = by_name['howareyou']
         assert len(howareyou.dependencies) == 2
         assert hello in howareyou.dependencies
         assert by_name['goodbye'] in howareyou.dependencies
-        assert howareyou.dependants == []
+        assert howareyou._dependants == []
 
 
 class ServiceCollectionTests(unittest.TestCase):
@@ -438,11 +448,11 @@ class ServiceCollectionTests(unittest.TestCase):
         collection.load_definitions()
         assert len(collection.all_by_name) == 3
         hello = collection.all_by_name['hello']
-        assert len(hello.dependants) == 1
-        assert hello.dependants[0].name == 'goodbye'
+        assert len(hello._dependants) == 1
+        assert hello._dependants[0].name == 'goodbye'
         howareyou = collection.all_by_name['howareyou']
-        assert len(howareyou.dependants) == 2
-        names = [x.name for x in howareyou.dependants]
+        assert len(howareyou._dependants) == 2
+        names = [x.name for x in howareyou._dependants]
         assert 'hello' in names
         assert 'goodbye' in names
 

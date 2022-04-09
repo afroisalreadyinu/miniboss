@@ -2,7 +2,7 @@ from __future__ import annotations
 import logging
 import random
 import time
-from typing import TYPE_CHECKING
+from typing import Optional, TYPE_CHECKING
 
 import docker
 import docker.errors
@@ -16,21 +16,21 @@ logger = logging.getLogger(__name__)
 
 DIGITS = "0123456789"
 
-_the_docker = None
+_the_docker: Optional[docker.DockerClient] = None
 
 class DockerClient:
 
-    def __init__(self, lib_client):
+    def __init__(self, lib_client: docker.DockerClient):
         self.lib_client = lib_client
 
     @classmethod
-    def get_client(cls):
+    def get_client(cls) -> DockerClient:
         global _the_docker
         if _the_docker is None:
             _the_docker = cls(docker.from_env())
         return _the_docker
 
-    def create_network(self, network_name):
+    def create_network(self, network_name: str):
         existing = self.lib_client.networks.list(names=[network_name])
         if existing:
             network = existing[0]
@@ -39,14 +39,14 @@ class DockerClient:
             logger.info("Created network %s", network_name)
         return network
 
-    def remove_network(self, network_name):
+    def remove_network(self, network_name: str):
         networks = self.lib_client.networks.list(names=[network_name])
         if networks:
             networks[0].remove()
             logger.info("Removed network %s", network_name)
 
 
-    def existing_on_network(self, name, network: Network):
+    def existing_on_network(self, name: str, network: Network):
         return self.lib_client.containers.list(all=True, filters={'network': network.id,
                                                                   'name': name})
 
@@ -54,29 +54,26 @@ class DockerClient:
         try:
             self.lib_client.images.build(tag=image_tag, path=build_dir, dockerfile=dockerfile)
         except docker.errors.BuildError as build_error:
-            msg = "Error building image: {}".format(build_error.msg)
-            raise DockerException(msg) from None
+            raise DockerException(f"Error building image: {build_error.msg}") from None
         except docker.errors.APIError as api_error:
-            msg = "Error building image: {}".format(api_error.explanation)
-            raise DockerException(msg) from None
+            raise DockerException(f"Error building image: {api_error.explanation}") from None
 
-    def run_container(self, container_id):
+    def run_container(self, container_id: str):
         # The container should be already created but not in state running or starting
         try:
             self.lib_client.api.start(container_id)
         except docker.errors.APIError as api_error:
             # This might be e.g. due to cgroups errors
-            raise DockerException("Error starting container {}: {}".format(
-                container_id, api_error.explanation)) from None
+            msg = f"Error starting container {container_id}: {api_error.explanation}"
+            raise DockerException(msg) from None
         # Let's wait a little because the status of the container is
         # not set right away
         time.sleep(1)
         try:
             container = self.lib_client.containers.get(container_id)
         except docker.errors.NotFound:
-            raise DockerException(
-                "Something went terribly wrong: Could not find container {:s}".format(
-                    container_id)) from None
+            msg = f"Something went terribly wrong: Could not find container {container_id}"
+            raise DockerException(msg) from None
         if container.status != 'running':
             logs = self.lib_client.api.logs(container.id).decode('utf-8')
             raise ContainerStartException(logs, container.name)
@@ -93,12 +90,13 @@ class DockerClient:
         try:
             self.lib_client.images.pull(tag)
         except docker.errors.APIError as api_error:
-            raise DockerException("Could not pull image {} due to API error: {}".format(
-                tag, api_error.explanation)) from None
+            msg = f"Could not pull image {tag} due to API error: {api_error.explanation}"
+            raise DockerException(msg) from None
 
 
     def run_service_on_network(self, name_prefix, service: Service, network: Network):
-        container_name = "{:s}-{:s}".format(name_prefix, ''.join(random.sample(DIGITS, 4)))
+        random_suffix = ''.join(random.sample(DIGITS, 4))
+        container_name = f"{name_prefix}-{random_suffix}"
         networking_config = self.lib_client.api.create_networking_config({
             network.name: self.lib_client.api.create_endpoint_config(aliases=[service.name]),
         })
@@ -122,7 +120,7 @@ class DockerClient:
         try:
             container = self.lib_client.api.create_container(service.image, **kw_arguments)
         except docker.errors.ImageNotFound:
-            msg = "Image {:s} could not be found; please make sure it exists".format(service.image)
+            msg = f"Image {service.image:s} could not be found; please make sure it exists"
             raise DockerException(msg) from None
         container = self.run_container(container.get('Id'))
         logger.info("Started container id %s for service %s", container.id, service.name)

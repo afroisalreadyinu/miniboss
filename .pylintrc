@@ -148,7 +148,9 @@ disable=print-statement,
 	too-many-instance-attributes,
 	# This is disabled because the runtime catches cyclic imports, and pylint is not smart enough
 	# to figure out the cyclic imports guarded against with typing.TYPE_CHECKING
-	cyclic-import
+	cyclic-import,
+	# This is temporary
+	protected-access
 
 # Enable the message, report, category or checker with the given id(s). You can
 # either give multiple identifier separated by comma (,) or put this option
