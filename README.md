@@ -386,10 +386,14 @@ or a specific service is [reloaded](#reloading-a-service).
 - Logging fixes
 - Sample app fixes
 
+### 0.4.3
+
+- Entrypoint, cmd and user fields on service
+- Type hints
+- Use tbump for version bumping
+
 ## Todos
 
-- [x] Entrypoint, cmd and user fields on service
-- [x] Type hints
 - [ ] Add stop-only command
 - [ ] Add start-only command
 - [ ] Making easier to test on the cloud??
