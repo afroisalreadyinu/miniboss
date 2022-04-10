@@ -145,6 +145,48 @@ class ServiceDefinitionTests(unittest.TestCase):
             volumes = ["/tmp/dir1:/mnt/vol1", "/tmp/dir2:/mnt/vol2:ro"]
         assert NewService().volume_def_to_binds() == ["/mnt/vol1", "/mnt/vol2"]
 
+    def test_invalid_entrypoint(self):
+        with pytest.raises(ServiceDefinitionError):
+            class NewService(Service):
+                name = "yes"
+                image = "yes"
+                entrypoint = 10
+        with pytest.raises(ServiceDefinitionError):
+            class NewService(Service):
+                name = "yes"
+                image = "yes"
+                entrypoint = ["ls", 10]
+        class NewService(Service):
+            name = "yes"
+            image = "yes"
+            entrypoint = ["ls", "-la"]
+
+    def test_invalid_cmd(self):
+        with pytest.raises(ServiceDefinitionError):
+            class NewService(Service):
+                name = "yes"
+                image = "yes"
+                cmd = 10
+        with pytest.raises(ServiceDefinitionError):
+            class NewService(Service):
+                name = "yes"
+                image = "yes"
+                cmd = ["ls", 10]
+        class NewService(Service):
+            name = "yes"
+            image = "yes"
+            cmd = ["ls", "-la"]
+
+    def test_invalid_user(self):
+        with pytest.raises(ServiceDefinitionError):
+            class NewService(Service):
+                name = "yes"
+                image = "yes"
+                user = 10
+        class NewService(Service):
+            name = "yes"
+            image = "yes"
+            user = "auser"
 
 class ConnectServicesTests(unittest.TestCase):
 

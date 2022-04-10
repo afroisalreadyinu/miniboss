@@ -1,14 +1,19 @@
+from __future__ import annotations
 import os
 import threading
 import time
 from datetime import datetime
 import logging
+from typing import TYPE_CHECKING
 
 from miniboss import types
 from miniboss.docker_client import DockerClient
-from miniboss.context import Context
+from miniboss.context import Context, _Context
 from miniboss.types import AgentStatus, RunCondition, Actions, Options
 from miniboss.exceptions import ServiceAgentException
+
+if TYPE_CHECKING:
+    from miniboss.services import Service
 
 logger = logging.getLogger(__name__)
 
@@ -32,9 +37,7 @@ def differing_keys(specified, existing):
 
 class ServiceAgent(threading.Thread):
 
-    def __init__(self, service, options: Options, context):
-        # service: Service
-        # context: RunningContext
+    def __init__(self, service: Service, options: Options, context: _Context):
         super().__init__()
         self.service = service
         self.options = options
