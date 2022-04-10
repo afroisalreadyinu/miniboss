@@ -1,4 +1,6 @@
 -e .
 -r requirements.txt
-pylint==2.6.0
+mypy==0.942
+pylint==2.13.5
 pytest==6.2.5
+types-python-slugify==5.0.3

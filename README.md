@@ -389,15 +389,14 @@ or a specific service is [reloaded](#reloading-a-service).
 ## Todos
 
 - [x] Entrypoint, cmd and user fields on service
+- [x] Type hints
 - [ ] Add stop-only command
 - [ ] Add start-only command
 - [ ] Making easier to test on the cloud??
-- [ ] Type hints
 - [ ] Run tests in container (how?)
 - [ ] Exporting environment values for use in shell
 - [ ] Running one-off containers
 - [ ] Configuration object extrapolation
-- [ ] Read specs from docker-compose.yml
 - [ ] Running tests once system started
 - [ ] Using context values in tests
 - [ ] Dependent test suites and setups

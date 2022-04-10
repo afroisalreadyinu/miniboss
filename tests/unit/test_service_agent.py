@@ -48,7 +48,7 @@ class ServiceAgentTests(unittest.TestCase):
 
 
     def test_action_property(self):
-        service = Bunch(name='service1', dependencies=[], dependants=[])
+        service = Bunch(name='service1', dependencies=[], _dependants=[])
         agent = ServiceAgent(service, DEFAULT_OPTIONS, None)
         assert agent.action is None
         with pytest.raises(ServiceAgentException):
@@ -57,7 +57,7 @@ class ServiceAgentTests(unittest.TestCase):
         assert agent.action == 'start'
 
     def test_fail_if_action_not_set(self):
-        service = Bunch(name='service1', dependencies=[], dependants=[])
+        service = Bunch(name='service1', dependencies=[], _dependants=[])
         fake_context = FakeRunningContext()
         agent = ServiceAgent(service, DEFAULT_OPTIONS, fake_context)
         with pytest.raises(ServiceAgentException):

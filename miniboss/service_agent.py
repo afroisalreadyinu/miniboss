@@ -8,12 +8,13 @@ from typing import TYPE_CHECKING
 
 from miniboss import types
 from miniboss.docker_client import DockerClient
-from miniboss.context import Context, _Context
+from miniboss.context import Context
 from miniboss.types import AgentStatus, RunCondition, Actions, Options
 from miniboss.exceptions import ServiceAgentException
 
 if TYPE_CHECKING:
     from miniboss.services import Service
+    from miniboss.running_context import RunningContext
 
 logger = logging.getLogger(__name__)
 
@@ -37,19 +38,19 @@ def differing_keys(specified, existing):
 
 class ServiceAgent(threading.Thread):
 
-    def __init__(self, service: Service, options: Options, context: _Context):
+    def __init__(self, service: Service, options: Options, context: RunningContext):
         super().__init__()
         self.service = service
         self.options = options
         self.context = context
         self.open_dependencies = service.dependencies[:]
-        self.open_dependants = service.dependants[:]
+        self.open_dependants = service._dependants[:]
         self.run_condition = RunCondition()
         self.status = AgentStatus.NULL
         self._action = None
 
     def __repr__(self):
-        return "<ServiceAgent service={:s}>".format(self.service.name)
+        return f"<ServiceAgent service={self.service.name:s}>"
 
     @property
     def action(self):
@@ -71,7 +72,7 @@ class ServiceAgent(threading.Thread):
 
     @property
     def container_name_prefix(self):
-        return "{:s}-{:s}".format(self.service.name, types.group_name)
+        return f"{self.service.name:s}-{types.group_name:s}"
 
     def process_service_started(self, service):
         if service in self.open_dependencies:
@@ -84,7 +85,7 @@ class ServiceAgent(threading.Thread):
     def build_image(self):
         client = DockerClient.get_client()
         time_tag = datetime.now().strftime("%Y-%m-%d-%H%M")
-        image_tag = "{:s}-{:s}".format(self.service.name, time_tag)
+        image_tag = f"{self.service.name:s}-{time_tag:s}"
         build_dir = os.path.join(self.options.run_dir, self.service.build_from)
         logger.info("Building image with tag %s for service %s from directory %s",
                     image_tag, self.service.name, build_dir)
