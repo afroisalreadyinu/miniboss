@@ -3,10 +3,12 @@ import unittest
 import tempfile
 import uuid
 import subprocess
+from urllib3.exceptions import ProtocolError
 
 import docker
 import docker.errors
 import requests
+from requests.exceptions import ConnectionError
 import pytest
 
 import miniboss
@@ -27,7 +29,7 @@ def docker_unavailable():
     client = get_lib_client()
     try:
         client.ping()
-    except docker.errors.DockerException:
+    except (docker.errors.DockerException, ConnectionError, ProtocolError, FileNotFoundError):
         return True
     return False
 
