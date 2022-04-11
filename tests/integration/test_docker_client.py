@@ -26,10 +26,10 @@ def get_lib_client():
 
 
 def docker_unavailable():
-    client = get_lib_client()
     try:
+        client = get_lib_client()
         client.ping()
-    except (docker.errors.DockerException, ConnectionError, ProtocolError, FileNotFoundError):
+    except docker.errors.DockerException:
         return True
     return False
 
