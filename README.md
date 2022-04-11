@@ -392,8 +392,13 @@ or a specific service is [reloaded](#reloading-a-service).
 - Type hints
 - Use tbump for version bumping
 
+### 0.4.3
+
+- Corrected docker lcient library version in dependencies
+
 ## Todos
 
+- [ ] User attrs properly with types
 - [ ] Add stop-only command
 - [ ] Add start-only command
 - [ ] Making easier to test on the cloud??
