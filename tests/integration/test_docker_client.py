@@ -7,7 +7,6 @@ import subprocess
 import docker
 import docker.errors
 import requests
-from requests.exceptions import ConnectionError
 import pytest
 
 import miniboss
@@ -28,7 +27,7 @@ def docker_unavailable():
     client = get_lib_client()
     try:
         client.ping()
-    except ConnectionError:
+    except docker.errors.DockerException:
         return True
     return False
 
