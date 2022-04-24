@@ -174,7 +174,7 @@ app.run(host='0.0.0.0', port=8080)
 
 
     @pytest.mark.skipif(selinux_enabled(), reason="This test will not run if seelinux enabled, disable" \
-                        "it with `su -c \"setenforce 0\"`, and then reenable it")
+                        "it with `su -c \"setenforce 0\"`, and then re-enable it")
     def test_run_service_volume_mount(self):
         client = DockerClient.get_client()
         client.create_network('miniboss-test-network')
@@ -242,7 +242,7 @@ app.run(host='0.0.0.0', port=8080)
 
     def test_check_image_download_from_repo(self):
         lib_client = get_lib_client()
-        # Start a local intance of the container
+        # Start a local instance of the container
         lib_client.images.pull('registry:2')
         hub_container = lib_client.containers.run('registry:2', detach=True, ports={5000:5000})
         self.container_cleanup.append(hub_container.name)
