@@ -168,7 +168,7 @@ the whole collection's lifecycle.
 ### Per-service events
 
 For per-service events, `miniboss.Service` has three methods that can be
-overriden in order to correctly change states and execute actions on the
+overridden in order to correctly change states and execute actions on the
 container:
 
 - **`Service.pre_start()`**: Executed before the service is started. Can be used
@@ -186,17 +186,17 @@ container:
   It can be used to prime a service by e.g. creating data on it, or bringing it
   to a certain state. You can also use the global context in this method; see
   [The global context](#the-global-context) for details. If there is already a
-  service running, or an existing container image is started insted of creating
+  service running, or an existing container image is started instead of creating
   a new one, this method is not called.
 
 These methods are [noop](https://en.wikipedia.org/wiki/NOP_(code)) by default. A
 service is not registered as properly started before lifecycle methods are
-executed successfully; only then are the dependant services started.
+executed successfully; only then are the dependent services started.
 
 The `ping` method is particularly useful if you want to avoid the situation
 described above, where a container starts, but the main process has not
 completed initializing before any dependent services start. Here is an example
-for how one would ping the `appdb` service to make sure the Postgresql database
+for how one would ping the `appdb` service to make sure the PostgreSQL database
 is accepting connections:
 
 ```python
@@ -272,7 +272,7 @@ configuration, the `appdb` database can be accessed at `localhost:5433`.
 The object `miniboss.Context`, derived from the standard dict class, can be used
 to store values that are accessible to other service definitions, especially in
 the `env` field. For example, if you create a user in the `post_start` method of
-a service, and would like to make the ID of this user available to a dependant
+a service, and would like to make the ID of this user available to a dependent
 service, you can set it on the context with `Context['user_id'] = user.id`. In
 the definition of the second service, you can refer to this value in a field
 with the standard Python keyword formatting syntax, as in the following:
