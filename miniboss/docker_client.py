@@ -47,7 +47,9 @@ class DockerClient:
             networks[0].remove()
             logger.info("Removed network %s", network_name)
 
-    def existing_on_network(self, name: str, network: Network) -> list[docker.models.containers.Container]:
+    def existing_on_network(
+        self, name: str, network: Network
+    ) -> list[docker.models.containers.Container]:
         return self.lib_client.containers.list(
             all=True, filters={"network": network.id, "name": name}
         )
@@ -101,7 +103,9 @@ class DockerClient:
             )
             raise DockerException(msg) from None
 
-    def run_service_on_network(self, name_prefix, service: Service, network: Network) -> str:
+    def run_service_on_network(
+        self, name_prefix, service: Service, network: Network
+    ) -> str:
         random_suffix = "".join(random.sample(DIGITS, 4))
         container_name = f"{name_prefix}-{random_suffix}"
         networking_config = self.lib_client.api.create_networking_config(
