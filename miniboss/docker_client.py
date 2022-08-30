@@ -5,8 +5,8 @@ import random
 import time
 from typing import TYPE_CHECKING, Optional
 
-import docker
-import docker.errors
+import docker  # type: ignore
+import docker.errors  # type: ignore
 
 from miniboss.exceptions import ContainerStartException, DockerException
 from miniboss.types import Network
@@ -32,7 +32,7 @@ class DockerClient:
             _the_docker = cls(docker.from_env())
         return _the_docker
 
-    def create_network(self, network_name: str):
+    def create_network(self, network_name: str) -> docker.models.networks.Network:
         existing = self.lib_client.networks.list(names=[network_name])
         if existing:
             network = existing[0]
@@ -41,13 +41,13 @@ class DockerClient:
             logger.info("Created network %s", network_name)
         return network
 
-    def remove_network(self, network_name: str):
+    def remove_network(self, network_name: str) -> None:
         networks = self.lib_client.networks.list(names=[network_name])
         if networks:
             networks[0].remove()
             logger.info("Removed network %s", network_name)
 
-    def existing_on_network(self, name: str, network: Network):
+    def existing_on_network(self, name: str, network: Network) -> list[docker.models.containers.Container]:
         return self.lib_client.containers.list(
             all=True, filters={"network": network.id, "name": name}
         )
@@ -101,7 +101,7 @@ class DockerClient:
             )
             raise DockerException(msg) from None
 
-    def run_service_on_network(self, name_prefix, service: Service, network: Network):
+    def run_service_on_network(self, name_prefix, service: Service, network: Network) -> str:
         random_suffix = "".join(random.sample(DIGITS, 4))
         container_name = f"{name_prefix}-{random_suffix}"
         networking_config = self.lib_client.api.create_networking_config(

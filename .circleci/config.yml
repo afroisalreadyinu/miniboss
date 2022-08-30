@@ -22,7 +22,7 @@ jobs:
           command: python -m pylint miniboss
           name: Lint
       - run:
-          command: python -m mypy --ignore-missing-imports miniboss
+          command: python -m mypy ./miniboss
           name: Lint
       - run:
           command: python -m pytest
