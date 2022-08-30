@@ -1,67 +1,71 @@
-import os
 import json
-import unittest
-from unittest.mock import patch
-from types import SimpleNamespace as Bunch
-import tempfile
+import os
 import pathlib
-import time
 import shutil
+import tempfile
+import time
+import unittest
+from types import SimpleNamespace as Bunch
+from unittest.mock import patch
 
 import attr
 import pytest
+from common import DEFAULT_OPTIONS, FakeContainer, FakeDocker
 from slugify import slugify
 
-from miniboss import types
-from miniboss.services import (connect_services,
-                               Service,
-                               ServiceLoadError,
-                               ServiceCollection,
-                               ServiceDefinitionError)
-
+from miniboss import Context, exceptions, service_agent, services, types
 from miniboss.service_agent import ServiceAgent
-from miniboss.types import Options, Network
-from miniboss import services, service_agent, Context, exceptions
+from miniboss.services import (
+    Service,
+    ServiceCollection,
+    ServiceDefinitionError,
+    ServiceLoadError,
+    connect_services,
+)
+from miniboss.types import Network, Options
 
-from common import FakeDocker, FakeContainer, DEFAULT_OPTIONS
 
 class ServiceDefinitionTests(unittest.TestCase):
-
     def test_missing_name(self):
         with pytest.raises(ServiceDefinitionError):
+
             class NewService(Service):
                 pass
 
         with pytest.raises(ServiceDefinitionError):
+
             class NewService(Service):
                 name = "yes"
-
 
     def test_missing_image(self):
         with pytest.raises(ServiceDefinitionError):
+
             class NewService(Service):
                 name = "yes"
 
         with pytest.raises(ServiceDefinitionError):
+
             class NewService(Service):
                 name = "yes"
                 image = 34.56
 
-
     def test_invalid_field_types(self):
         with pytest.raises(ServiceDefinitionError):
+
             class NewService(Service):
                 name = "yes"
                 image = "yes"
                 ports = "no"
 
         with pytest.raises(ServiceDefinitionError):
+
             class NewService(Service):
                 name = "yes"
                 image = "yes"
                 env = "no"
 
         with pytest.raises(ServiceDefinitionError):
+
             class NewService(Service):
                 name = "yes"
                 image = "yes"
@@ -70,6 +74,7 @@ class ServiceDefinitionTests(unittest.TestCase):
 
     def test_invalid_signal_name(self):
         with pytest.raises(ServiceDefinitionError):
+
             class NewService(Service):
                 name = "yes"
                 image = "yes"
@@ -80,6 +85,7 @@ class ServiceDefinitionTests(unittest.TestCase):
         class NewService(Service):
             name = "service_one"
             image = "notused"
+
         service = NewService()
         a_dict = {service: "one"}
         assert service == NewService()
@@ -87,6 +93,7 @@ class ServiceDefinitionTests(unittest.TestCase):
 
     def test_invalid_build_from(self):
         with pytest.raises(ServiceDefinitionError):
+
             class NewService(Service):
                 name = "yes"
                 image = "yes"
@@ -95,6 +102,7 @@ class ServiceDefinitionTests(unittest.TestCase):
 
     def test_invalid_dockerfile(self):
         with pytest.raises(ServiceDefinitionError):
+
             class NewService(Service):
                 name = "yes"
                 image = "yes"
@@ -103,59 +111,70 @@ class ServiceDefinitionTests(unittest.TestCase):
 
     def test_volume_spec(self):
         with pytest.raises(ServiceDefinitionError):
+
             class NewService(Service):
                 name = "yes"
                 image = "yes"
                 volumes = "Hello"
+
         with pytest.raises(ServiceDefinitionError):
+
             class NewService(Service):
                 name = "yes"
                 image = "yes"
                 volumes = ["vol1", 123]
 
         with pytest.raises(ServiceDefinitionError):
+
             class NewService(Service):
                 name = "yes"
                 image = "yes"
                 volumes = {"vol1": 123}
 
         with pytest.raises(ServiceDefinitionError):
+
             class NewService(Service):
                 name = "yes"
                 image = "yes"
-                volumes = {"vol1": {'key': 'value'}}
+                volumes = {"vol1": {"key": "value"}}
 
         with pytest.raises(ServiceDefinitionError):
+
             class NewService(Service):
                 name = "yes"
                 image = "yes"
-                volumes = {"vol1": {'bind': 12345}}
-
+                volumes = {"vol1": {"bind": 12345}}
 
     def test_volume_def_to_binds(self):
         class NewService(Service):
             name = "yes"
             image = "yes"
-            volumes = {"/home/user/temp": {'bind': "/mnt/vol1", "mode": "ro"}}
+            volumes = {"/home/user/temp": {"bind": "/mnt/vol1", "mode": "ro"}}
+
         assert NewService().volume_def_to_binds() == ["/mnt/vol1"]
 
         class NewService(Service):
             name = "yes"
             image = "yes"
             volumes = ["/tmp/dir1:/mnt/vol1", "/tmp/dir2:/mnt/vol2:ro"]
+
         assert NewService().volume_def_to_binds() == ["/mnt/vol1", "/mnt/vol2"]
 
     def test_invalid_entrypoint(self):
         with pytest.raises(ServiceDefinitionError):
+
             class NewService(Service):
                 name = "yes"
                 image = "yes"
                 entrypoint = 10
+
         with pytest.raises(ServiceDefinitionError):
+
             class NewService(Service):
                 name = "yes"
                 image = "yes"
                 entrypoint = ["ls", 10]
+
         class NewService(Service):
             name = "yes"
             image = "yes"
@@ -163,15 +182,19 @@ class ServiceDefinitionTests(unittest.TestCase):
 
     def test_invalid_cmd(self):
         with pytest.raises(ServiceDefinitionError):
+
             class NewService(Service):
                 name = "yes"
                 image = "yes"
                 cmd = 10
+
         with pytest.raises(ServiceDefinitionError):
+
             class NewService(Service):
                 name = "yes"
                 image = "yes"
                 cmd = ["ls", 10]
+
         class NewService(Service):
             name = "yes"
             image = "yes"
@@ -179,84 +202,105 @@ class ServiceDefinitionTests(unittest.TestCase):
 
     def test_invalid_user(self):
         with pytest.raises(ServiceDefinitionError):
+
             class NewService(Service):
                 name = "yes"
                 image = "yes"
                 user = 10
+
         class NewService(Service):
             name = "yes"
             image = "yes"
             user = "auser"
 
-class ConnectServicesTests(unittest.TestCase):
 
+class ConnectServicesTests(unittest.TestCase):
     def test_raise_exception_on_same_name(self):
-        services = [Bunch(name="hello", image="hello"),
-                    Bunch(name="hello", image="goodbye")]
+        services = [
+            Bunch(name="hello", image="hello"),
+            Bunch(name="hello", image="goodbye"),
+        ]
         with pytest.raises(ServiceLoadError):
             connect_services(services)
 
     def test_mix_service_and_name(self):
         service_one = Bunch(name="service_one", image="hello", dependencies=[])
-        services = [service_one,
-                    Bunch(name="service_two", image="hello", dependencies=[service_one]),
-                    Bunch(name="goodbye", image="goodbye", dependencies=[service_one, "service_two"])]
+        services = [
+            service_one,
+            Bunch(name="service_two", image="hello", dependencies=[service_one]),
+            Bunch(
+                name="goodbye",
+                image="goodbye",
+                dependencies=[service_one, "service_two"],
+            ),
+        ]
         by_name = connect_services(services)
         assert len(by_name) == 3
-        assert 'goodbye' in by_name
-        assert len(by_name['goodbye'].dependencies) == 2
+        assert "goodbye" in by_name
+        assert len(by_name["goodbye"].dependencies) == 2
 
     def test_exception_on_invalid_dependency(self):
-        services = [Bunch(name="hello", image="hello", dependencies=[]),
-                    Bunch(name="goodbye", image="goodbye", dependencies=["not_hello"])]
+        services = [
+            Bunch(name="hello", image="hello", dependencies=[]),
+            Bunch(name="goodbye", image="goodbye", dependencies=["not_hello"]),
+        ]
         with pytest.raises(ServiceLoadError):
             connect_services(services)
 
     def test_all_good(self):
-        services = [Bunch(name="hello", image="hello", dependencies=[]),
-                    Bunch(name="goodbye", image="goodbye", dependencies=["hello"]),
-                    Bunch(name="howareyou", image="howareyou", dependencies=["hello", "goodbye"])]
+        services = [
+            Bunch(name="hello", image="hello", dependencies=[]),
+            Bunch(name="goodbye", image="goodbye", dependencies=["hello"]),
+            Bunch(
+                name="howareyou", image="howareyou", dependencies=["hello", "goodbye"]
+            ),
+        ]
         by_name = connect_services(services)
         assert len(by_name) == 3
-        hello = by_name['hello']
+        hello = by_name["hello"]
         assert hello.dependencies == []
         assert len(hello._dependants) == 2
-        assert by_name['goodbye'] in hello._dependants
-        assert by_name['howareyou'] in hello._dependants
-        howareyou = by_name['howareyou']
+        assert by_name["goodbye"] in hello._dependants
+        assert by_name["howareyou"] in hello._dependants
+        howareyou = by_name["howareyou"]
         assert len(howareyou.dependencies) == 2
         assert hello in howareyou.dependencies
-        assert by_name['goodbye'] in howareyou.dependencies
+        assert by_name["goodbye"] in howareyou.dependencies
         assert howareyou._dependants == []
 
 
 class ServiceCollectionTests(unittest.TestCase):
-
     def setUp(self):
-        self.docker = FakeDocker.Instance = FakeDocker({'the-network': 'the-network-id'})
+        self.docker = FakeDocker.Instance = FakeDocker(
+            {"the-network": "the-network-id"}
+        )
         services.DockerClient = self.docker
         service_agent.DockerClient = self.docker
-        types.set_group_name('testing')
+        types.set_group_name("testing")
 
     def tearDown(self):
         types._unset_group_name()
 
     def test_raise_exception_on_no_services(self):
         collection = ServiceCollection()
+
         class NewServiceBase(Service):
             name = "not used"
             image = "not used"
+
         collection._base_class = NewServiceBase
         with pytest.raises(ServiceLoadError):
             collection.load_definitions()
 
-
     def test_raise_exception_on_circular_dependency(self):
         collection = ServiceCollection()
+
         class NewServiceBase(Service):
             name = "not used"
             image = "not used"
+
         collection._base_class = NewServiceBase
+
         class ServiceOne(NewServiceBase):
             name = "hello"
             image = "hello"
@@ -275,14 +319,15 @@ class ServiceCollectionTests(unittest.TestCase):
         with pytest.raises(ServiceLoadError):
             collection.load_definitions()
 
-
-
     def test_load_services(self):
         collection = ServiceCollection()
+
         class NewServiceBase(Service):
             name = "not used"
             image = "not used"
+
         collection._base_class = NewServiceBase
+
         class ServiceOne(NewServiceBase):
             name = "hello"
             image = "hello"
@@ -300,13 +345,15 @@ class ServiceCollectionTests(unittest.TestCase):
         collection.load_definitions()
         assert len(collection) == 3
 
-
     def test_exclude_for_start(self):
         collection = ServiceCollection()
+
         class NewServiceBase(Service):
             name = "not used"
             image = "not used"
+
         collection._base_class = NewServiceBase
+
         class ServiceOne(NewServiceBase):
             name = "hello"
             image = "hello"
@@ -322,16 +369,18 @@ class ServiceCollectionTests(unittest.TestCase):
             image = "hello"
 
         collection.load_definitions()
-        collection.exclude_for_start(['goodbye'])
+        collection.exclude_for_start(["goodbye"])
         assert len(collection) == 2
-
 
     def test_error_on_start_dependency_excluded(self):
         collection = ServiceCollection()
+
         class NewServiceBase(Service):
             name = "not used"
             image = "not used"
+
         collection._base_class = NewServiceBase
+
         class ServiceOne(NewServiceBase):
             name = "hello"
             image = "hello"
@@ -348,15 +397,17 @@ class ServiceCollectionTests(unittest.TestCase):
 
         collection.load_definitions()
         with pytest.raises(ServiceLoadError):
-            collection.exclude_for_start(['hello'])
-
+            collection.exclude_for_start(["hello"])
 
     def test_start_dependency_and_dependant_excluded(self):
         collection = ServiceCollection()
+
         class NewServiceBase(Service):
             name = "not used"
             image = "not used"
+
         collection._base_class = NewServiceBase
+
         class ServiceOne(NewServiceBase):
             name = "hello"
             image = "hello"
@@ -374,15 +425,17 @@ class ServiceCollectionTests(unittest.TestCase):
         collection.load_definitions()
         # There shouldn't be an exception, since we are excluding both hello and
         # goodbye
-        collection.exclude_for_start(['hello', 'goodbye'])
-
+        collection.exclude_for_start(["hello", "goodbye"])
 
     def test_error_on_stop_dependency_excluded(self):
         collection = ServiceCollection()
+
         class NewServiceBase(Service):
             name = "not used"
             image = "not used"
+
         collection._base_class = NewServiceBase
+
         class ServiceOne(NewServiceBase):
             name = "hello"
             image = "hello"
@@ -399,15 +452,17 @@ class ServiceCollectionTests(unittest.TestCase):
 
         collection.load_definitions()
         with pytest.raises(ServiceLoadError):
-            collection.exclude_for_stop(['goodbye'])
-
+            collection.exclude_for_stop(["goodbye"])
 
     def test_stop_dependency_and_dependant_excluded(self):
         collection = ServiceCollection()
+
         class NewServiceBase(Service):
             name = "not used"
             image = "not used"
+
         collection._base_class = NewServiceBase
+
         class ServiceOne(NewServiceBase):
             name = "hello"
             image = "hello"
@@ -421,15 +476,17 @@ class ServiceCollectionTests(unittest.TestCase):
         class ServiceThree(NewServiceBase):
             name = "howareyou"
             image = "hello"
-        collection.load_definitions()
-        collection.exclude_for_stop(['howareyou', 'hello'])
 
+        collection.load_definitions()
+        collection.exclude_for_stop(["howareyou", "hello"])
 
     def test_populate_dependants(self):
         collection = ServiceCollection()
+
         class NewServiceBase(Service):
             name = "not used"
             image = "not used"
+
         collection._base_class = NewServiceBase
 
         class ServiceOne(NewServiceBase):
@@ -445,17 +502,17 @@ class ServiceCollectionTests(unittest.TestCase):
         class ServiceThree(NewServiceBase):
             name = "howareyou"
             image = "not/used"
+
         collection.load_definitions()
         assert len(collection.all_by_name) == 3
-        hello = collection.all_by_name['hello']
+        hello = collection.all_by_name["hello"]
         assert len(hello._dependants) == 1
-        assert hello._dependants[0].name == 'goodbye'
-        howareyou = collection.all_by_name['howareyou']
+        assert hello._dependants[0].name == "goodbye"
+        howareyou = collection.all_by_name["howareyou"]
         assert len(howareyou._dependants) == 2
         names = [x.name for x in howareyou._dependants]
-        assert 'hello' in names
-        assert 'goodbye' in names
-
+        assert "hello" in names
+        assert "goodbye" in names
 
     def test_start_all(self):
         # This test does not fake threading, which is somehow dangerous, but the
@@ -463,10 +520,13 @@ class ServiceCollectionTests(unittest.TestCase):
         # is an exception in the service agent thread, and the
         # collection.start_all method does not hang.
         collection = ServiceCollection()
+
         class NewServiceBase(Service):
             name = "not used"
             image = "not used"
+
         collection._base_class = NewServiceBase
+
         class ServiceOne(NewServiceBase):
             name = "hello"
             image = "hello/image"
@@ -480,71 +540,80 @@ class ServiceCollectionTests(unittest.TestCase):
         class ServiceThree(NewServiceBase):
             name = "howareyou"
             image = "howareyou/image"
+
         collection.load_definitions()
         retval = collection.start_all(DEFAULT_OPTIONS)
         assert set(retval) == {"hello", "goodbye", "howareyou"}
         assert len(self.docker._services_started) == 3
         # The one without dependencies should have been started first
         name_prefix, service, network_name = self.docker._services_started[0]
-        assert service.image == 'howareyou/image'
+        assert service.image == "howareyou/image"
         assert name_prefix == "howareyou-testing"
-
 
     def test_start_all_with_build(self):
         collection = ServiceCollection()
+
         class NewServiceBase(Service):
             name = "not used"
             image = "not used"
+
         collection._base_class = NewServiceBase
+
         class ServiceTwo(NewServiceBase):
             name = "goodbye"
             image = "goodbye/image"
             build_from = "goodbye/dir"
             dockerfile = "Dockerfile.alt"
+
         collection.load_definitions()
-        options = attr.evolve(DEFAULT_OPTIONS, build=['goodbye'])
+        options = attr.evolve(DEFAULT_OPTIONS, build=["goodbye"])
         retval = collection.start_all(options)
         assert len(self.docker._images_built) == 1
         build_dir, dockerfile, image_tag = self.docker._images_built[0]
         assert build_dir == "/etc/goodbye/dir"
-        assert dockerfile == 'Dockerfile.alt'
+        assert dockerfile == "Dockerfile.alt"
         assert image_tag.startswith("goodbye-")
-        service = collection.all_by_name['goodbye']
+        service = collection.all_by_name["goodbye"]
         assert service.image == image_tag
-
 
     def test_start_all_create_network(self):
         collection = ServiceCollection()
+
         class NewServiceBase(Service):
             name = "not used"
             image = "not used"
+
         class ServiceTwo(NewServiceBase):
             name = "goodbye"
             image = "goodbye/image"
+
         collection._base_class = NewServiceBase
         collection.load_definitions()
         collection.start_all(DEFAULT_OPTIONS)
         assert self.docker._networks_created == ["the-network"]
 
-
     def test_stop_on_fail(self):
         collection = ServiceCollection()
+
         class NewServiceBase(Service):
             name = "not used"
             image = "not used"
+
         class TheService(NewServiceBase):
             name = "howareyou"
             image = "howareyou/image"
+
             def ping(self):
                 raise ValueError("I failed miserably")
+
         collection._base_class = NewServiceBase
         collection.load_definitions()
         started = collection.start_all(DEFAULT_OPTIONS)
         assert started == []
 
-
     def test_dont_return_failed_services(self):
         collection = ServiceCollection()
+
         class NewServiceBase(Service):
             name = "not used"
             image = "not used"
@@ -557,6 +626,7 @@ class ServiceCollectionTests(unittest.TestCase):
             name = "imok"
             image = "howareyou/image"
             dependencies = ["howareyou"]
+
             def ping(self):
                 raise ValueError("I failed miserably")
 
@@ -565,10 +635,10 @@ class ServiceCollectionTests(unittest.TestCase):
         started = collection.start_all(DEFAULT_OPTIONS)
         assert started == ["howareyou"]
 
-
     def test_continue_if_start_failed(self):
         """If a service fails, those that don't depend on it should still be started"""
         collection = ServiceCollection()
+
         class NewServiceBase(Service):
             name = "not used"
             image = "not used"
@@ -576,12 +646,14 @@ class ServiceCollectionTests(unittest.TestCase):
         class FirstService(NewServiceBase):
             name = "first-service"
             image = "howareyou/image"
+
             def ping(self):
                 raise ValueError("I failed miserably")
 
         class SecondService(NewServiceBase):
             name = "second-service"
             image = "howareyou/image"
+
             def ping(self):
                 time.sleep(0.5)
                 return True
@@ -591,19 +663,23 @@ class ServiceCollectionTests(unittest.TestCase):
         started = collection.start_all(DEFAULT_OPTIONS)
         assert started == ["second-service"]
 
-
     def test_stop_all_remove_false(self):
-        container1 = FakeContainer(name='service1-testing-1234',
-                                   stopped=False,
-                                   network='the-network',
-                                   status='running')
-        container2 = FakeContainer(name='service2-testing-5678',
-                                   stopped=False,
-                                   removed=False,
-                                   network='the-network',
-                                   status='exited')
+        container1 = FakeContainer(
+            name="service1-testing-1234",
+            stopped=False,
+            network="the-network",
+            status="running",
+        )
+        container2 = FakeContainer(
+            name="service2-testing-5678",
+            stopped=False,
+            removed=False,
+            network="the-network",
+            status="exited",
+        )
         self.docker._existing_containers = [container1, container2]
         collection = ServiceCollection()
+
         class NewServiceBase(Service):
             name = "not used"
             image = "not used"
@@ -624,14 +700,15 @@ class ServiceCollectionTests(unittest.TestCase):
         assert not container2.stopped
 
     def test_stop_without_remove(self):
-        container1 = FakeContainer(name='service1-testing-1234',
-                                   network='the-network',
-                                   status='running')
-        container2 = FakeContainer(name='service2-testing-5678',
-                                   network='the-network',
-                                   status='exited')
+        container1 = FakeContainer(
+            name="service1-testing-1234", network="the-network", status="running"
+        )
+        container2 = FakeContainer(
+            name="service2-testing-5678", network="the-network", status="exited"
+        )
         self.docker._existing_containers = [container1, container2]
         collection = ServiceCollection()
+
         class NewServiceBase(Service):
             name = "not used"
             image = "not used"
@@ -653,19 +730,19 @@ class ServiceCollectionTests(unittest.TestCase):
         assert not container2.stopped
         assert self.docker._networks_removed == []
 
-
     def test_stop_with_remove_and_order(self):
-        container1 = FakeContainer(name='service1-testing-1234',
-                                   network='the-network',
-                                   status='running')
-        container2 = FakeContainer(name='service2-testing-5678',
-                                   network='the-network',
-                                   status='running')
-        container3 = FakeContainer(name='service3-testing-5678',
-                                   network='the-network',
-                                   status='running')
+        container1 = FakeContainer(
+            name="service1-testing-1234", network="the-network", status="running"
+        )
+        container2 = FakeContainer(
+            name="service2-testing-5678", network="the-network", status="running"
+        )
+        container3 = FakeContainer(
+            name="service3-testing-5678", network="the-network", status="running"
+        )
         self.docker._existing_containers = [container1, container2, container3]
         collection = ServiceCollection()
+
         class NewServiceBase(Service):
             name = "not used"
             image = "not used"
@@ -677,20 +754,22 @@ class ServiceCollectionTests(unittest.TestCase):
         class ServiceTwo(NewServiceBase):
             name = "service2"
             image = "howareyou/image"
-            dependencies = ['service1']
+            dependencies = ["service1"]
 
         class ServiceThree(NewServiceBase):
             name = "service3"
             image = "howareyou/image"
-            dependencies = ['service2']
+            dependencies = ["service2"]
 
         collection._base_class = NewServiceBase
         collection.load_definitions()
-        options = Options(network=Network(name='the-network', id='the-network-id'),
-                          timeout=50,
-                          remove=True,
-                          run_dir='/etc',
-                          build=[])
+        options = Options(
+            network=Network(name="the-network", id="the-network-id"),
+            timeout=50,
+            remove=True,
+            run_dir="/etc",
+            build=[],
+        )
         collection.stop_all(options)
         assert container1.stopped
         assert container1.removed_at is not None
@@ -699,18 +778,18 @@ class ServiceCollectionTests(unittest.TestCase):
         assert container3.stopped
         assert container3.removed_at is not None
         assert container1.removed_at > container2.removed_at > container3.removed_at
-        assert self.docker._networks_removed == ['the-network']
-
+        assert self.docker._networks_removed == ["the-network"]
 
     def test_stop_with_remove_and_exclude(self):
-        container1 = FakeContainer(name='service1-testing-1234',
-                                   network='the-network',
-                                   status='running')
-        container2 = FakeContainer(name='service2-testing-5678',
-                                   network='the-network',
-                                   status='running')
+        container1 = FakeContainer(
+            name="service1-testing-1234", network="the-network", status="running"
+        )
+        container2 = FakeContainer(
+            name="service2-testing-5678", network="the-network", status="running"
+        )
         self.docker._existing_containers = [container1, container2]
         collection = ServiceCollection()
+
         class NewServiceBase(Service):
             name = "not used"
             image = "not used"
@@ -725,14 +804,16 @@ class ServiceCollectionTests(unittest.TestCase):
 
         collection._base_class = NewServiceBase
         collection.load_definitions()
-        collection.exclude_for_stop(['service2'])
-        options = Options(network=Network(name='the-network', id='the-network-id'),
-                          timeout=50,
-                          remove=True,
-                          run_dir='/etc',
-                          build=[])
+        collection.exclude_for_stop(["service2"])
+        options = Options(
+            network=Network(name="the-network", id="the-network-id"),
+            timeout=50,
+            remove=True,
+            run_dir="/etc",
+            build=[],
+        )
         retval = collection.stop_all(options)
-        assert retval == ['service1']
+        assert retval == ["service1"]
         assert container1.stopped
         assert container1.removed_at is not None
         # service2 was excluded
@@ -741,19 +822,19 @@ class ServiceCollectionTests(unittest.TestCase):
         # If excluded is not empty, network should not be removed
         assert self.docker._networks_removed == []
 
-
     def test_update_for_base_service(self):
-        container1 = FakeContainer(name='service1-testing-1234',
-                                   network='the-network',
-                                   status='running')
-        container2 = FakeContainer(name='service2-testing-5678',
-                                   network='the-network',
-                                   status='running')
-        container3 = FakeContainer(name='service3-testing-5678',
-                                   network='the-network',
-                                   status='running')
+        container1 = FakeContainer(
+            name="service1-testing-1234", network="the-network", status="running"
+        )
+        container2 = FakeContainer(
+            name="service2-testing-5678", network="the-network", status="running"
+        )
+        container3 = FakeContainer(
+            name="service3-testing-5678", network="the-network", status="running"
+        )
         self.docker._existing_containers = [container1, container2, container3]
         collection = ServiceCollection()
+
         class NewServiceBase(Service):
             name = "not used"
             image = "not used"
@@ -765,26 +846,28 @@ class ServiceCollectionTests(unittest.TestCase):
         class ServiceTwo(NewServiceBase):
             name = "service2"
             image = "howareyou/image"
-            dependencies = ['service1']
+            dependencies = ["service1"]
 
         class ServiceThree(NewServiceBase):
-            name = 'service3'
-            image = 'howareyou/image'
-            dependencies = ['service1', 'service2']
+            name = "service3"
+            image = "howareyou/image"
+            dependencies = ["service1", "service2"]
 
         collection._base_class = NewServiceBase
         collection.load_definitions()
-        collection.update_for_base_service('service2')
-        assert collection.all_by_name == {'service2': ServiceTwo(),
-                                          'service3': ServiceThree()}
+        collection.update_for_base_service("service2")
+        assert collection.all_by_name == {
+            "service2": ServiceTwo(),
+            "service3": ServiceThree(),
+        }
         collection.stop_all(DEFAULT_OPTIONS)
         assert not container1.stopped
         assert container2.stopped
         assert container3.stopped
 
-
     def test_check_can_be_built(self):
         collection = ServiceCollection()
+
         class NewServiceBase(Service):
             name = "not used"
             image = "not used"
@@ -801,40 +884,46 @@ class ServiceCollectionTests(unittest.TestCase):
         collection._base_class = NewServiceBase
         collection.load_definitions()
         with pytest.raises(ServiceDefinitionError):
-            collection.check_can_be_built('no-such-service')
+            collection.check_can_be_built("no-such-service")
         with pytest.raises(ServiceDefinitionError):
-            collection.check_can_be_built('service1')
-        collection.check_can_be_built('service2')
+            collection.check_can_be_built("service1")
+        collection.check_can_be_built("service2")
 
 
 class ServiceCommandTests(unittest.TestCase):
-
     def setUp(self):
         class MockServiceCollection:
             def load_definitions(self):
                 pass
+
             def exclude_for_start(self, exclude):
                 self.excluded = exclude
+
             def exclude_for_stop(self, exclude):
                 self.excluded = exclude
+
             def start_all(self, options):
                 self.options = options
                 return ["one", "two"]
+
             def stop_all(self, options):
                 self.options = options
                 self.stopped = True
                 return ["one", "two"]
+
             def reload_service(self, service_name, options):
                 self.options = options
                 self.reloaded = service_name
+
             def check_can_be_built(self, service_name):
                 self.checked_can_be_built = service_name
+
             def update_for_base_service(self, service_name):
                 self.updated_for_base_service = service_name
 
         self.collection = MockServiceCollection()
         services.ServiceCollection = lambda: self.collection
-        types.set_group_name('test')
+        types.set_group_name("test")
         Context._reset()
         self.workdir = tempfile.mkdtemp()
 
@@ -850,172 +939,191 @@ class ServiceCommandTests(unittest.TestCase):
     def test_update_group_name_on_stop(self):
         workdir = tempfile.mkdtemp()
         types._unset_group_name()
-        services.stop_services(self.workdir, ['test'], "miniboss", False, 50)
+        services.stop_services(self.workdir, ["test"], "miniboss", False, 50)
         assert types.group_name == slugify(pathlib.Path(self.workdir).name)
 
     def test_update_group_name_on_reload(self):
         workdir = tempfile.mkdtemp()
         types._unset_group_name()
-        services.reload_service(self.workdir, 'the-service', "miniboss", False, 50)
+        services.reload_service(self.workdir, "the-service", "miniboss", False, 50)
         assert types.group_name == slugify(pathlib.Path(self.workdir).name)
 
     def test_start_services_exclude(self):
-        services.start_services("/tmp", ['blah'], "miniboss", 50)
-        assert self.collection.excluded == ['blah']
+        services.start_services("/tmp", ["blah"], "miniboss", 50)
+        assert self.collection.excluded == ["blah"]
 
     def test_start_services_save_context(self):
         directory = tempfile.mkdtemp()
-        Context['key_one'] = 'a_value'
-        Context['key_two'] = 'other_value'
+        Context["key_one"] = "a_value"
+        Context["key_two"] = "other_value"
         services.start_services(directory, [], "miniboss", 50)
         with open(os.path.join(directory, ".miniboss-context"), "r") as context_file:
             context_data = json.load(context_file)
-        assert context_data == {'key_one': 'a_value', 'key_two': 'other_value'}
-
+        assert context_data == {"key_one": "a_value", "key_two": "other_value"}
 
     def test_start_services(self):
-        services.start_services('/tmp', [], "miniboss", 50)
+        services.start_services("/tmp", [], "miniboss", 50)
         options = self.collection.options
-        assert options.network.name == 'miniboss'
-        assert options.network.id == ''
+        assert options.network.name == "miniboss"
+        assert options.network.id == ""
         assert options.timeout == 50
         assert options.remove == False
-        assert options.run_dir == '/tmp'
+        assert options.run_dir == "/tmp"
         assert options.build == []
 
     def test_services_network_name_none(self):
-        services.start_services('/tmp', [], None, 50)
+        services.start_services("/tmp", [], None, 50)
         options = self.collection.options
-        assert options.network.name == 'miniboss-test'
+        assert options.network.name == "miniboss-test"
 
     def test_start_services_hook(self):
         sentinel = None
+
         def hook(services):
             nonlocal sentinel
             sentinel = services
+
         services.on_start_services(hook)
-        services.start_services('/tmp', [], "miniboss", 50)
-        assert sentinel == ['one', 'two']
+        services.start_services("/tmp", [], "miniboss", 50)
+        assert sentinel == ["one", "two"]
 
     def test_start_services_exception(self):
         sentinel = None
+
         def hook(services):
             nonlocal sentinel
             sentinel = services
             raise ValueError("Hoho")
-        services.on_start_services(hook)
-        services.start_services('/tmp', [], "miniboss", 50)
-        assert sentinel == ['one', 'two']
 
+        services.on_start_services(hook)
+        services.start_services("/tmp", [], "miniboss", 50)
+        assert sentinel == ["one", "two"]
 
     def test_load_context_on_new(self):
         directory = tempfile.mkdtemp()
         with open(os.path.join(directory, ".miniboss-context"), "w") as context_file:
-            context_file.write(json.dumps({"key_one": "value_one", "key_two": "value_two"}))
+            context_file.write(
+                json.dumps({"key_one": "value_one", "key_two": "value_two"})
+            )
         services.start_services(directory, [], "miniboss", 50)
-        assert Context['key_one'] == 'value_one'
-        assert Context['key_two'] == 'value_two'
+        assert Context["key_one"] == "value_one"
+        assert Context["key_two"] == "value_two"
 
     def test_stop_services(self):
-        services.stop_services('/tmp', ['test'], "miniboss", False, 50)
-        assert self.collection.options.network.name == 'miniboss'
+        services.stop_services("/tmp", ["test"], "miniboss", False, 50)
+        assert self.collection.options.network.name == "miniboss"
         assert self.collection.options.timeout == 50
-        assert self.collection.options.run_dir == '/tmp'
+        assert self.collection.options.run_dir == "/tmp"
         assert not self.collection.options.remove
-        assert self.collection.excluded == ['test']
+        assert self.collection.excluded == ["test"]
 
     def test_start_services_hook(self):
         sentinel = None
+
         def hook(services):
             nonlocal sentinel
             sentinel = services
+
         services.on_start_services(hook)
-        services.start_services('/tmp', [], "miniboss", 50)
-        assert sentinel == ['one', 'two']
+        services.start_services("/tmp", [], "miniboss", 50)
+        assert sentinel == ["one", "two"]
 
     def test_start_services_hook_exception(self):
         sentinel = None
+
         def hook(services):
             nonlocal sentinel
             sentinel = services
             raise ValueError("Hoho")
+
         services.on_start_services(hook)
-        services.start_services('/tmp', [], "miniboss", 50)
-        assert sentinel == ['one', 'two']
+        services.start_services("/tmp", [], "miniboss", 50)
+        assert sentinel == ["one", "two"]
 
     def test_stop_services_network_name_none(self):
-        services.stop_services('/tmp', ['test'], None, False, 50)
-        assert self.collection.options.network.name == 'miniboss-test'
+        services.stop_services("/tmp", ["test"], None, False, 50)
+        assert self.collection.options.network.name == "miniboss-test"
 
     def test_stop_services_hook(self):
         sentinel = None
+
         def hook(services):
             nonlocal sentinel
             sentinel = services
+
         services.on_stop_services(hook)
-        services.stop_services('/tmp', ['test'], "miniboss", False, 50)
+        services.stop_services("/tmp", ["test"], "miniboss", False, 50)
         assert sentinel == ["one", "two"]
 
     def test_stop_services_hook_exception(self):
         sentinel = None
+
         def hook(services):
             nonlocal sentinel
             sentinel = services
             raise ValueError("Hoho")
+
         services.on_stop_services(hook)
-        services.stop_services('/tmp', ['test'], "miniboss", False, 50)
-        assert sentinel == ['one', 'two']
+        services.stop_services("/tmp", ["test"], "miniboss", False, 50)
+        assert sentinel == ["one", "two"]
 
     def test_stop_services_remove_context(self):
         directory = tempfile.mkdtemp()
         path = pathlib.Path(directory) / ".miniboss-context"
         with open(path, "w") as context_file:
-            context_file.write(json.dumps({"key_one": "value_one", "key_two": "value_two"}))
+            context_file.write(
+                json.dumps({"key_one": "value_one", "key_two": "value_two"})
+            )
         services.stop_services(directory, [], "miniboss", False, 50)
         assert path.exists()
         services.stop_services(directory, [], "miniboss", True, 50)
         assert not path.exists()
 
     def test_reload_service(self):
-        services.reload_service('/tmp', 'the-service', "miniboss", False, 50)
-        assert self.collection.checked_can_be_built == 'the-service'
-        assert self.collection.updated_for_base_service == 'the-service'
-        assert self.collection.options.network.name == 'miniboss'
+        services.reload_service("/tmp", "the-service", "miniboss", False, 50)
+        assert self.collection.checked_can_be_built == "the-service"
+        assert self.collection.updated_for_base_service == "the-service"
+        assert self.collection.options.network.name == "miniboss"
         assert self.collection.options.timeout == 50
-        assert self.collection.options.run_dir == '/tmp'
-        assert self.collection.options.build == ['the-service']
+        assert self.collection.options.run_dir == "/tmp"
+        assert self.collection.options.build == ["the-service"]
         assert not self.collection.options.remove
 
     def test_reload_service_network_name_none(self):
-        services.reload_service('/tmp', 'the-service', None, False, 50)
-        assert self.collection.options.network.name == 'miniboss-test'
+        services.reload_service("/tmp", "the-service", None, False, 50)
+        assert self.collection.options.network.name == "miniboss-test"
 
     def test_reload_service_hook(self):
         sentinel = None
+
         def hook(service_name):
             nonlocal sentinel
             sentinel = service_name
+
         services.on_reload_service(hook)
-        services.reload_service('/tmp', 'the-service', "miniboss", False, 50)
-        assert sentinel == 'the-service'
+        services.reload_service("/tmp", "the-service", "miniboss", False, 50)
+        assert sentinel == "the-service"
 
     def test_stop_services_hook_exception(self):
         sentinel = None
+
         def hook(services):
             nonlocal sentinel
             sentinel = services
             raise ValueError("Hoho")
+
         services.on_reload_service(hook)
-        services.reload_service('/tmp', 'the-service', "miniboss", False, 50)
-        assert sentinel == 'the-service'
+        services.reload_service("/tmp", "the-service", "miniboss", False, 50)
+        assert sentinel == "the-service"
 
     def test_reload_service_save_and_load_context(self):
         directory = tempfile.mkdtemp()
         path = pathlib.Path(directory) / ".miniboss-context"
         with open(path, "w") as context_file:
-            context_file.write(json.dumps({"key_one": "value_one",
-                                           "key_two": "value_two"}))
-        services.reload_service(directory, 'the-service', "miniboss", False, 50)
-        assert Context['key_one'] == 'value_one'
-        assert Context['key_two'] == 'value_two'
+            context_file.write(
+                json.dumps({"key_one": "value_one", "key_two": "value_two"})
+            )
+        services.reload_service(directory, "the-service", "miniboss", False, 50)
+        assert Context["key_one"] == "value_one"
+        assert Context["key_two"] == "value_two"
         assert path.exists()

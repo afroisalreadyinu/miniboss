@@ -1,29 +1,37 @@
 #! /usr/bin/env python3
-import miniboss
-import psycopg2
 import logging
 
-logging.basicConfig(level=logging.INFO, format='[%(name)s] %(message)s')
+import psycopg2
 
-miniboss.group_name('readme-demo')
+import miniboss
+
+logging.basicConfig(level=logging.INFO, format="[%(name)s] %(message)s")
+
+miniboss.group_name("readme-demo")
+
 
 class Database(miniboss.Service):
     name = "appdb"
     image = "postgres:10.6"
-    env = {"POSTGRES_PASSWORD": "dbpwd",
-           "POSTGRES_USER": "dbuser",
-           "POSTGRES_DB": "appdb" }
+    env = {
+        "POSTGRES_PASSWORD": "dbpwd",
+        "POSTGRES_USER": "dbuser",
+        "POSTGRES_DB": "appdb",
+    }
     ports = {5432: 5433}
 
     def ping(self):
         try:
-            connection = psycopg2.connect("postgresql://dbuser:dbpwd@localhost:5433/appdb")
+            connection = psycopg2.connect(
+                "postgresql://dbuser:dbpwd@localhost:5433/appdb"
+            )
             cur = connection.cursor()
-            cur.execute('SELECT 1')
+            cur.execute("SELECT 1")
         except psycopg2.OperationalError:
             return False
         else:
             return True
+
 
 class Application(miniboss.Service):
     name = "python-todo"
@@ -32,11 +40,13 @@ class Application(miniboss.Service):
     dependencies = ["appdb"]
     ports = {8080: 8080}
     stop_signal = "SIGINT"
-    build_from = 'python-todo'
+    build_from = "python-todo"
+
 
 def print_info(services):
     if Application.name in services:
         print("TODO app can be accessed at http://localhost:8080")
+
 
 miniboss.on_start_services(print_info)
 

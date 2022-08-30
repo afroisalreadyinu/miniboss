@@ -1,6 +1,9 @@
 -e .
 -r requirements.txt
+black==22.6.0
+isort==5.10.1
 mypy==0.942
+pdbpp==0.10.3
 pylint==2.13.5
 pytest==6.2.5
 types-python-slugify==5.0.3

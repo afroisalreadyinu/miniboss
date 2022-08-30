@@ -1,22 +1,24 @@
 from __future__ import annotations
-import time
+
 import logging
+import time
 from collections import Counter, deque
 from collections.abc import Mapping
-from typing import Any, Union, Callable
+from typing import Any, Callable, Union
 
 from miniboss import types
-from miniboss.docker_client import DockerClient
-from miniboss.types import Options, Network
-from miniboss.running_context import RunningContext
 from miniboss.context import Context
-from miniboss.exceptions import ServiceLoadError, ServiceDefinitionError
+from miniboss.docker_client import DockerClient
+from miniboss.exceptions import ServiceDefinitionError, ServiceLoadError
+from miniboss.running_context import RunningContext
+from miniboss.types import Network, Options
 
 logger = logging.getLogger(__name__)
 
 KEYCLOAK_PORT = 8090
 OSTKREUZ_PORT = 8080
 ALLOWED_STOP_SIGNALS = ["SIGINT", "SIGTERM", "SIGKILL", "SIGQUIT"]
+
 
 class ServiceMeta(type):
     # pylint: disable=too-many-branches,too-many-statements
@@ -25,78 +27,102 @@ class ServiceMeta(type):
             return super().__new__(cls, name, bases, attrdict)
         if not isinstance(attrdict.get("name"), str) or attrdict["name"] == "":
             raise ServiceDefinitionError(
-                f"Field 'name' of service class {name:s} must be a non-empty string")
+                f"Field 'name' of service class {name:s} must be a non-empty string"
+            )
         if not isinstance(attrdict.get("image"), str) or attrdict["image"] == "":
             raise ServiceDefinitionError(
-                f"Field 'image' of service class {name:s} must be a non-empty string")
+                f"Field 'image' of service class {name:s} must be a non-empty string"
+            )
         if "ports" in attrdict and not isinstance(attrdict["ports"], Mapping):
             raise ServiceDefinitionError(
-                f"Field 'ports' of service class {name:s} must be a mapping")
+                f"Field 'ports' of service class {name:s} must be a mapping"
+            )
         if "env" in attrdict and not isinstance(attrdict["env"], Mapping):
             raise ServiceDefinitionError(
-                f"Field 'env' of service class {name:s} must be a mapping")
-        if "always_start_new" in attrdict and not isinstance(attrdict["always_start_new"], bool):
+                f"Field 'env' of service class {name:s} must be a mapping"
+            )
+        if "always_start_new" in attrdict and not isinstance(
+            attrdict["always_start_new"], bool
+        ):
             raise ServiceDefinitionError(
-                f"Field 'always_start_new' of service class {name:s} must be a boolean")
+                f"Field 'always_start_new' of service class {name:s} must be a boolean"
+            )
         if "build_from" in attrdict:
             build_dir = attrdict["build_from"]
-            if not isinstance(build_dir, str) or build_dir == '':
+            if not isinstance(build_dir, str) or build_dir == "":
                 raise ServiceDefinitionError(
-                    f"Field 'build_from' of service class {name:s} must be a non-empty string")
+                    f"Field 'build_from' of service class {name:s} must be a non-empty string"
+                )
         if "dockerfile" in attrdict:
             dockerfile = attrdict["dockerfile"]
-            if not isinstance(dockerfile, str) or dockerfile == '':
+            if not isinstance(dockerfile, str) or dockerfile == "":
                 raise ServiceDefinitionError(
-                    f"Field 'dockerfile' of service class {name:s} must be a non-empty string")
+                    f"Field 'dockerfile' of service class {name:s} must be a non-empty string"
+                )
         if "stop_signal" in attrdict:
             signal_name = attrdict["stop_signal"]
             if signal_name not in ALLOWED_STOP_SIGNALS:
-                raise ServiceDefinitionError(f"Stop signal not allowed: {signal_name:s}")
+                raise ServiceDefinitionError(
+                    f"Stop signal not allowed: {signal_name:s}"
+                )
         if "entrypoint" in attrdict:
-            entrypoint = attrdict['entrypoint']
+            entrypoint = attrdict["entrypoint"]
             if isinstance(entrypoint, list):
                 if not all(isinstance(x, str) for x in entrypoint):
-                    msg = (f"Field 'entrypoint' of service class {name:s} must " \
-                           "be a string or list of strings")
+                    msg = (
+                        f"Field 'entrypoint' of service class {name:s} must "
+                        "be a string or list of strings"
+                    )
                     raise ServiceDefinitionError(msg)
             elif not isinstance(entrypoint, str):
                 raise ServiceDefinitionError(
-                    f"Field 'entrypoint' of service class {name:s} must " \
-                    "be a string or list of strings")
+                    f"Field 'entrypoint' of service class {name:s} must "
+                    "be a string or list of strings"
+                )
         if "cmd" in attrdict:
-            cmd = attrdict['cmd']
+            cmd = attrdict["cmd"]
             if isinstance(cmd, list):
                 if not all(isinstance(x, str) for x in cmd):
                     raise ServiceDefinitionError(
-                        f"Field 'cmd' of service class {name:s} must " \
-                        "be a string or list of strings")
+                        f"Field 'cmd' of service class {name:s} must "
+                        "be a string or list of strings"
+                    )
             elif not isinstance(cmd, str):
                 raise ServiceDefinitionError(
-                    f"Field 'cmd' of service class {name:s} must " \
-                    "be a string or list of strings")
+                    f"Field 'cmd' of service class {name:s} must "
+                    "be a string or list of strings"
+                )
         if "user" in attrdict:
-            user = attrdict['user']
+            user = attrdict["user"]
             if not isinstance(user, str):
                 raise ServiceDefinitionError(
-                    f"Field 'user' of service class {name:s} must be a string")
+                    f"Field 'user' of service class {name:s} must be a string"
+                )
         if "volumes" in attrdict:
             volumes = attrdict["volumes"]
             if isinstance(volumes, list):
                 if not all(isinstance(x, str) for x in volumes):
                     raise ServiceDefinitionError(
-                        "Volumes have to be defined either as a list of strings or a dict")
+                        "Volumes have to be defined either as a list of strings or a dict"
+                    )
             elif isinstance(volumes, dict):
                 if not all(isinstance(x, str) for x in volumes.keys()):
-                    raise ServiceDefinitionError("Volume definition keys have to be strings")
+                    raise ServiceDefinitionError(
+                        "Volume definition keys have to be strings"
+                    )
                 for volume in volumes.values():
                     if not isinstance(volume, dict):
-                        raise ServiceDefinitionError("Volume definition values have to be dicts")
-                    if not isinstance(volume.get('bind'), str):
                         raise ServiceDefinitionError(
-                            "Volume definitions have to specify 'bind' key")
+                            "Volume definition values have to be dicts"
+                        )
+                    if not isinstance(volume.get("bind"), str):
+                        raise ServiceDefinitionError(
+                            "Volume definitions have to specify 'bind' key"
+                        )
             else:
                 raise ServiceDefinitionError(
-                    "Volumes have to be defined either as a list of strings or a dict")
+                    "Volumes have to be defined either as a list of strings or a dict"
+                )
         return super().__new__(cls, name, bases, attrdict)
 
 
@@ -137,14 +163,15 @@ class Service(metaclass=ServiceMeta):
 
     def volume_def_to_binds(self) -> list[str]:
         if isinstance(self.volumes, dict):
-            return [x['bind'] for x in self.volumes.values()]
-        return [x.split(':')[1] for x in self.volumes]
+            return [x["bind"] for x in self.volumes.values()]
+        return [x.split(":")[1] for x in self.volumes]
+
 
 def connect_services(services: list[Service]) -> dict[str, Service]:
     name_counter: Counter[str] = Counter()
     for service in services:
         name_counter[service.name] += 1
-    multiples = [name for name,count in name_counter.items() if count > 1]
+    multiples = [name for name, count in name_counter.items() if count > 1]
     if multiples:
         raise ServiceLoadError(f'Repeated service names: {",".join(multiples)}')
     all_by_name = {service.name: service for service in services}
@@ -156,7 +183,8 @@ def connect_services(services: list[Service]) -> dict[str, Service]:
             if isinstance(dependency, str):
                 if dependency not in all_by_name:
                     raise ServiceLoadError(
-                        f"Dependency {service.name:s} of service {dependency:s} not among services")
+                        f"Dependency {service.name:s} of service {dependency:s} not among services"
+                    )
                 dependency = all_by_name[dependency]
             actual_deps.append(dependency)
         service.dependencies = actual_deps
@@ -164,8 +192,8 @@ def connect_services(services: list[Service]) -> dict[str, Service]:
         service._dependants = [x for x in services if service in x.dependencies]
     return all_by_name
 
-class ServiceCollection:
 
+class ServiceCollection:
     def __init__(self):
         self.all_by_name = {}
         self._base_class = Service
@@ -184,7 +212,9 @@ class ServiceCollection:
         for service in self.all_by_name.values():
             if service.name in exclude:
                 continue
-            excluded_deps = [dep.name for dep in service.dependencies if dep.name in exclude]
+            excluded_deps = [
+                dep.name for dep in service.dependencies if dep.name in exclude
+            ]
             if excluded_deps:
                 msg = f"{excluded_deps[0]} is to be excluded, but {service.name:s} depends on it"
                 raise ServiceLoadError(msg)
@@ -196,25 +226,27 @@ class ServiceCollection:
         for name in exclude:
             self.all_by_name.pop(name)
 
-
     def exclude_for_stop(self, exclude):
         self.excluded = exclude
         for service_name in exclude:
             service = self.all_by_name[service_name]
-            deps_to_be_stopped = [dep.name for dep in service.dependencies
-                                  if dep.name not in exclude]
+            deps_to_be_stopped = [
+                dep.name for dep in service.dependencies if dep.name not in exclude
+            ]
             if deps_to_be_stopped:
                 msg = f"{deps_to_be_stopped[0]} is to be stopped, but {service.name} depends on it"
                 raise ServiceLoadError(msg)
             self.all_by_name.pop(service_name)
 
-
     def check_circular_dependencies(self):
-        with_dependencies = [x for x in self.all_by_name.values() if x.dependencies != []]
+        with_dependencies = [
+            x for x in self.all_by_name.values() if x.dependencies != []
+        ]
         # pylint: disable=cell-var-from-loop
         for service in with_dependencies:
             start = service.name
             count = 0
+
             def go_up_dependencies(checked):
                 nonlocal count
                 count += 1
@@ -224,6 +256,7 @@ class ServiceCollection:
                     if count == len(self.all_by_name):
                         return
                     go_up_dependencies(dependency)
+
             go_up_dependencies(service)
 
     def __len__(self):
@@ -234,7 +267,9 @@ class ServiceCollection:
             raise ServiceDefinitionError(f"No such service: {service_name}")
         service = self.all_by_name[service_name]
         if not service.build_from:
-            msg = f"Service {service.name} cannot be built: No build directory specified"
+            msg = (
+                f"Service {service.name} cannot be built: No build directory specified"
+            )
             raise ServiceDefinitionError(msg)
 
     def start_all(self, options: Options) -> list[str]:
@@ -252,7 +287,6 @@ class ServiceCollection:
             logger.error("Failed to start following services: %s", ",".join(failed))
         return [x for x in self.all_by_name.keys() if x not in failed]
 
-
     def stop_all(self, options: Options) -> list[str]:
         docker = DockerClient.get_client()
         self.running_context = RunningContext(self.all_by_name, options)
@@ -265,7 +299,6 @@ class ServiceCollection:
         if options.remove and not self.excluded:
             docker.remove_network(options.network.name)
         return stopped
-
 
     def update_for_base_service(self, service_name):
         if service_name not in self.all_by_name:
@@ -281,18 +314,23 @@ class ServiceCollection:
                     queue.append(dependant)
         self.all_by_name = {service.name: service for service in required}
 
+
 SingleServiceHookType = Callable[[str], Any]
 
-ServicesHookType  = Callable[[list[str]], Any]
+ServicesHookType = Callable[[list[str]], Any]
+
 
 def noop(*_, **__):
     pass
 
+
 _start_services_hook: ServicesHookType = noop
+
 
 def on_start_services(hook_func: ServicesHookType):
     global _start_services_hook
     _start_services_hook = hook_func
+
 
 def start_services(maindir: str, exclude: list[str], network_name: str, timeout: int):
     types.update_group_name(maindir)
@@ -301,11 +339,13 @@ def start_services(maindir: str, exclude: list[str], network_name: str, timeout:
     collection.load_definitions()
     collection.exclude_for_start(exclude)
     network_name = network_name or f"miniboss-{types.group_name}"
-    options = Options(network=Network(name=network_name, id=''),
-                      timeout=timeout,
-                      remove=False,
-                      run_dir=maindir,
-                      build=[])
+    options = Options(
+        network=Network(name=network_name, id=""),
+        timeout=timeout,
+        remove=False,
+        run_dir=maindir,
+        build=[],
+    )
     service_names = collection.start_all(options)
     logger.info("Started services: %s", ", ".join(service_names))
     Context.save_to(maindir)
@@ -314,25 +354,34 @@ def start_services(maindir: str, exclude: list[str], network_name: str, timeout:
     except KeyboardInterrupt:
         logger.info("Interrupted on_start_services hook")
         return
-    except: # pylint: disable=bare-except
+    except:  # pylint: disable=bare-except
         logger.exception("Error running on_start_services hook")
 
 
 _stop_services_hook: ServicesHookType = noop
 
+
 def on_stop_services(hook_func: ServicesHookType):
     global _stop_services_hook
     _stop_services_hook = hook_func
 
-def stop_services(maindir: str, excluded: list[str], network_name: str, remove: bool, timeout: int):
+
+def stop_services(
+    maindir: str, excluded: list[str], network_name: str, remove: bool, timeout: int
+):
     types.update_group_name(maindir)
-    logger.info("Stopping services (excluded: %s)", "none" if not excluded else ",".join(excluded))
+    logger.info(
+        "Stopping services (excluded: %s)",
+        "none" if not excluded else ",".join(excluded),
+    )
     network_name = network_name or f"miniboss-{types.group_name}"
-    options = Options(network=Network(name=network_name, id=''),
-                      timeout=timeout,
-                      remove=remove,
-                      run_dir=maindir,
-                      build=[])
+    options = Options(
+        network=Network(name=network_name, id=""),
+        timeout=timeout,
+        remove=remove,
+        run_dir=maindir,
+        build=[],
+    )
     collection = ServiceCollection()
     collection.load_definitions()
     collection.exclude_for_stop(excluded)
@@ -344,25 +393,31 @@ def stop_services(maindir: str, excluded: list[str], network_name: str, remove: 
     except KeyboardInterrupt:
         logger.info("Interrupted on_stop_services hook")
         return
-    except: # pylint: disable=bare-except
+    except:  # pylint: disable=bare-except
         logger.exception("Error running on_stop_services hook")
 
 
 _reload_service_hook: SingleServiceHookType = noop
 
+
 def on_reload_service(hook_func: SingleServiceHookType):
     global _reload_service_hook
     _reload_service_hook = hook_func
 
+
 # pylint: disable=too-many-arguments
-def reload_service(maindir: str, service: str, network_name: str, remove: bool, timeout: int):
+def reload_service(
+    maindir: str, service: str, network_name: str, remove: bool, timeout: int
+):
     types.update_group_name(maindir)
     network_name = network_name or f"miniboss-{types.group_name}"
-    options = Options(network=Network(name=network_name, id=''),
-                      timeout=timeout,
-                      remove=remove,
-                      run_dir=maindir,
-                      build=[service])
+    options = Options(
+        network=Network(name=network_name, id=""),
+        timeout=timeout,
+        remove=remove,
+        run_dir=maindir,
+        build=[service],
+    )
     stop_collection = ServiceCollection()
     stop_collection.load_definitions()
     stop_collection.check_can_be_built(service)
@@ -380,5 +435,5 @@ def reload_service(maindir: str, service: str, network_name: str, remove: bool, 
     except KeyboardInterrupt:
         logger.info("Interrupted on_stop_services hook")
         return
-    except: # pylint: disable=bare-except
+    except:  # pylint: disable=bare-except
         logger.exception("Error running on_stop_services hook")

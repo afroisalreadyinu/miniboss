@@ -1,18 +1,21 @@
 from __future__ import annotations
+
 import threading
 from typing import TYPE_CHECKING
 
-from miniboss.service_agent import (ServiceAgent,
-                                    Options)
+from miniboss.service_agent import Options, ServiceAgent
+
 if TYPE_CHECKING:
     from miniboss.services import Service
 
-class RunningContext:
 
+class RunningContext:
     def __init__(self, services_by_name: dict[str, Service], options: Options):
         super().__init__()
-        self.agent_set = {service: ServiceAgent(service, options, self)
-                          for name, service in services_by_name.items()}
+        self.agent_set = {
+            service: ServiceAgent(service, options, self)
+            for name, service in services_by_name.items()
+        }
         self.failed_services: list[Service] = []
         self.processed_services: list[Service] = []
         self.service_pop_lock = threading.Lock()
@@ -22,7 +25,7 @@ class RunningContext:
         return self.agent_set == {}
 
     @property
-    def context_failed(self)-> bool:
+    def context_failed(self) -> bool:
         return bool(self.failed_services)
 
     @property
@@ -48,7 +51,6 @@ class RunningContext:
             self.processed_services.append(started_service)
             for agent in self.agent_set.values():
                 agent.process_service_started(started_service)
-
 
     def service_stopped(self, stopped_service: Service) -> None:
         with self.service_pop_lock:

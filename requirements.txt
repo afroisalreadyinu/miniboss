@@ -1,5 +1,5 @@
 attrs==20.3.0
-click==7.1.2
+click==8.1.3
 docker==5.0.3
 furl==2.1.0
 python-slugify==6.1.1

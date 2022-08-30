@@ -1,28 +1,30 @@
 from __future__ import annotations
+
+import logging
 import os
 import threading
 import time
 from datetime import datetime
-import logging
 from typing import TYPE_CHECKING
 
 from miniboss import types
-from miniboss.docker_client import DockerClient
 from miniboss.context import Context
-from miniboss.types import AgentStatus, RunCondition, Actions, Options
+from miniboss.docker_client import DockerClient
 from miniboss.exceptions import ServiceAgentException
+from miniboss.types import Actions, AgentStatus, Options, RunCondition
 
 if TYPE_CHECKING:
-    from miniboss.services import Service
     from miniboss.running_context import RunningContext
+    from miniboss.services import Service
 
 logger = logging.getLogger(__name__)
 
+
 def container_env(container):
-    env = container.attrs['Config']['Env']
+    env = container.attrs["Config"]["Env"]
     retval = {}
     for env_line in env:
-        key, value = env_line.split('=', 1)
+        key, value = env_line.split("=", 1)
         retval[key] = value
     return retval
 
@@ -32,12 +34,11 @@ def differing_keys(specified, existing):
     in the service def, and the other of an existing container image. Only a one
     way diff; we ignore keys in `existing` that are not in `specified`. We are
     also converting the keys from specified to string because the values from
-    existing are always strings anyway. """
-    return [key for key,value in specified.items() if str(value) != existing.get(key)]
+    existing are always strings anyway."""
+    return [key for key, value in specified.items() if str(value) != existing.get(key)]
 
 
 class ServiceAgent(threading.Thread):
-
     def __init__(self, service: Service, options: Options, context: RunningContext):
         super().__init__()
         self.service = service
@@ -87,8 +88,12 @@ class ServiceAgent(threading.Thread):
         time_tag = datetime.now().strftime("%Y-%m-%d-%H%M")
         image_tag = f"{self.service.name:s}-{time_tag:s}"
         build_dir = os.path.join(self.options.run_dir, self.service.build_from)
-        logger.info("Building image with tag %s for service %s from directory %s",
-                    image_tag, self.service.name, build_dir)
+        logger.info(
+            "Building image with tag %s for service %s from directory %s",
+            image_tag,
+            self.service.name,
+            build_dir,
+        )
         client.build_image(build_dir, self.service.dockerfile, image_tag)
         self.run_condition.build_image()
         return image_tag
@@ -98,39 +103,49 @@ class ServiceAgent(threading.Thread):
         # TODO fix this; it should be able to deal with multiple existing
         # containers
         existing = existings[0]
-        if existing.status == 'running':
-            logger.info("Found running container for %s, not starting a new one",
-                        self.service.name)
+        if existing.status == "running":
+            logger.info(
+                "Found running container for %s, not starting a new one",
+                self.service.name,
+            )
             self.run_condition.already_running()
             return
         client = DockerClient.get_client()
-        if existing.status == 'exited':
+        if existing.status == "exited":
             existing_env = container_env(existing)
             diff_keys = differing_keys(self.service.env, existing_env)
             if diff_keys:
-                logger.info("Differing env key(s) in existing container for service %s: %s",
-                            self.service.name, ",".join(diff_keys))
-            start_new = (self.service.always_start_new or
-                         self.service.image not in existing.image.tags or
-                         bool(diff_keys))
+                logger.info(
+                    "Differing env key(s) in existing container for service %s: %s",
+                    self.service.name,
+                    ",".join(diff_keys),
+                )
+            start_new = (
+                self.service.always_start_new
+                or self.service.image not in existing.image.tags
+                or bool(diff_keys)
+            )
             if not start_new:
-                logger.info("There is an existing container for %s, not creating a new one",
-                            self.service.name)
+                logger.info(
+                    "There is an existing container for %s, not creating a new one",
+                    self.service.name,
+                )
                 self.run_condition.started()
                 client.run_container(existing.id)
                 if not self.ping():
                     self._fail()
 
-
-    def run_image(self): # returns RunCondition
+    def run_image(self):  # returns RunCondition
         # pylint: disable=import-outside-toplevel, cyclic-import
         from miniboss.services import Service
+
         client = DockerClient.get_client()
         self.service.env = Context.extrapolate_values(self.service.env)
         # If there are any running with the name prefix, connected to the same
         # network, skip creating
-        existings = client.existing_on_network(self.container_name_prefix,
-                                               self.options.network)
+        existings = client.existing_on_network(
+            self.container_name_prefix, self.options.network
+        )
         if existings:
             self._start_existing(existings)
             if self.run_condition.state in [RunCondition.STARTED, RunCondition.RUNNING]:
@@ -140,9 +155,9 @@ class ServiceAgent(threading.Thread):
         if self.service.pre_start.__func__ is not Service.pre_start:
             logger.info("pre_start for service %s ran", self.service.name)
         self.run_condition.pre_started()
-        client.run_service_on_network(self.container_name_prefix,
-                                      self.service,
-                                      self.options.network)
+        client.run_service_on_network(
+            self.container_name_prefix, self.service, self.options.network
+        )
 
         self.run_condition.started()
         if not self.ping():
@@ -191,13 +206,14 @@ class ServiceAgent(threading.Thread):
             self._stop_container(remove=True)
 
     def start_container(self):
-        if (self.service.name in self.options.build
-            or (self.service.build_from and self.service.image.endswith(':latest'))):
+        if self.service.name in self.options.build or (
+            self.service.build_from and self.service.image.endswith(":latest")
+        ):
             tag = self.build_image()
             self.service.image = tag
         try:
             self.run_image()
-        except Exception: # pylint: disable=broad-except
+        except Exception:  # pylint: disable=broad-except
             logger.exception("Error starting service")
             self._fail()
         if self.run_condition.state == RunCondition.RUNNING:
@@ -207,12 +223,13 @@ class ServiceAgent(threading.Thread):
 
     def _stop_container(self, remove):
         client = DockerClient.get_client()
-        existings = client.existing_on_network(self.container_name_prefix,
-                                               self.options.network)
+        existings = client.existing_on_network(
+            self.container_name_prefix, self.options.network
+        )
         if not existings:
             logger.info("No containers to stop for %s", self.service.name)
         for existing in existings:
-            if existing.status == 'running':
+            if existing.status == "running":
                 existing.stop(timeout=self.options.timeout)
                 logger.info("Stopped container %s", existing.name)
             if remove:

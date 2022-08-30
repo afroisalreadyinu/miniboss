@@ -13,6 +13,12 @@ jobs:
           command: pip install --user -r requirements_test.txt
       - python/save-cache
       - run:
+          command: python -m black --check --diff .
+          name: Check formatting
+      - run:
+          command: python -m isort --check --diff --profile black .
+          name: Check import sorting
+      - run:
           command: python -m pylint miniboss
           name: Lint
       - run:

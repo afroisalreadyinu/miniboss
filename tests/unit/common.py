@@ -1,14 +1,16 @@
-import uuid
 import time
+import uuid
 from types import SimpleNamespace as Bunch
 
-from miniboss.types import Options, Network
+from miniboss.types import Network, Options
 
-DEFAULT_OPTIONS = Options(network=Network(name='the-network', id='the-network-id'),
-                          timeout=1,
-                          remove=False,
-                          run_dir='/etc',
-                          build=[])
+DEFAULT_OPTIONS = Options(
+    network=Network(name="the-network", id="the-network-id"),
+    timeout=1,
+    remove=False,
+    run_dir="/etc",
+    build=[],
+)
 
 
 class FakeRunningContext:
@@ -26,16 +28,23 @@ class FakeRunningContext:
     def service_failed(self, failed_service):
         self.failed_services.append(failed_service)
 
+
 class FakeService:
-    image = 'not/used'
+    image = "not/used"
     _dependants = []
     ports = {}
     env = {}
     always_start_new = False
     build_from = None
-    dockerfile = 'Dockerfile'
+    dockerfile = "Dockerfile"
 
-    def __init__(self, name='service1', dependencies=None, fail_ping=False, exception_at_init=None):
+    def __init__(
+        self,
+        name="service1",
+        dependencies=None,
+        fail_ping=False,
+        exception_at_init=None,
+    ):
         self.name = name
         self.dependencies = dependencies or []
         self.fail_ping = fail_ping
@@ -65,7 +74,6 @@ class FakeService:
 
 
 class FakeContainer(Bunch):
-
     def __init__(self, **kwargs):
         self.stopped = False
         self.removed_at = None
@@ -109,8 +117,10 @@ class FakeDocker:
     def existing_on_network(self, name, network):
         self._existing_queried.append((name, network))
         for container in self._existing_containers:
-            if (container.name.startswith(name) and
-                self.network_name_id_mapping[container.network] == network.id):
+            if (
+                container.name.startswith(name)
+                and self.network_name_id_mapping[container.network] == network.id
+            ):
                 return [container]
         return []
 

@@ -1,20 +1,21 @@
 import os
-import unittest
-import tempfile
-import uuid
 import subprocess
+import tempfile
+import unittest
+import uuid
 
 import docker
 import docker.errors
-import requests
 import pytest
+import requests
 
 import miniboss
-from miniboss.docker_client import DockerClient
 from miniboss import exceptions
+from miniboss.docker_client import DockerClient
 from miniboss.types import Network
 
 _lib_client = None
+
 
 def get_lib_client():
     global _lib_client
@@ -31,6 +32,7 @@ def docker_unavailable():
         return True
     return False
 
+
 def selinux_enabled():
     try:
         seenabled_cmd = subprocess.run("selinuxenabled")
@@ -41,7 +43,6 @@ def selinux_enabled():
 
 @pytest.mark.skipif(docker_unavailable(), reason="docker service is not available")
 class DockerClientTests(unittest.TestCase):
-
     def setUp(self):
         self.network_cleanup = []
         self.container_cleanup = []
@@ -64,86 +65,100 @@ class DockerClientTests(unittest.TestCase):
 
     def test_create_remove_network(self):
         client = DockerClient.get_client()
-        client.create_network('miniboss-test-network')
+        client.create_network("miniboss-test-network")
         lib_client = get_lib_client()
         networks = lib_client.networks.list()
-        assert 'miniboss-test-network' in [n.name for n in networks]
-        client.remove_network('miniboss-test-network')
+        assert "miniboss-test-network" in [n.name for n in networks]
+        client.remove_network("miniboss-test-network")
         networks = lib_client.networks.list()
-        assert 'miniboss-test-network' not in [n.name for n in networks]
-
+        assert "miniboss-test-network" not in [n.name for n in networks]
 
     def test_run_service_on_network(self):
         client = DockerClient.get_client()
-        client.create_network('miniboss-test-network')
-        self.network_cleanup.append('miniboss-test-network')
+        client.create_network("miniboss-test-network")
+        self.network_cleanup.append("miniboss-test-network")
+
         class TestService(miniboss.Service):
-            name = 'test-service'
-            image = 'nginx'
+            name = "test-service"
+            image = "nginx"
             ports = {80: 8085}
+
         service = TestService()
-        container_name = client.run_service_on_network('miniboss-test-service',
-                                                       service,
-                                                       Network(name='miniboss-test-network', id=""))
+        container_name = client.run_service_on_network(
+            "miniboss-test-service",
+            service,
+            Network(name="miniboss-test-network", id=""),
+        )
         self.container_cleanup.append(container_name)
-        resp = requests.get('http://localhost:8085')
+        resp = requests.get("http://localhost:8085")
         assert resp.status_code == 200
         lib_client = get_lib_client()
         containers = lib_client.containers.list()
         assert container_name in [c.name for c in containers]
-        network = lib_client.networks.get('miniboss-test-network')
+        network = lib_client.networks.get("miniboss-test-network")
         assert len(network.containers) == 1
         assert network.containers[0].name == container_name
 
     def test_service_entrypoint(self):
         client = DockerClient.get_client()
-        client.create_network('miniboss-test-network')
-        self.network_cleanup.append('miniboss-test-network')
+        client.create_network("miniboss-test-network")
+        self.network_cleanup.append("miniboss-test-network")
+
         class TestService(miniboss.Service):
-            name = 'test-service'
-            image = 'python:3.7'
+            name = "test-service"
+            image = "python:3.7"
             ports = {8000: 8085}
             entrypoint = ["python3", "-m", "http.server"]
+
         service = TestService()
-        container_name = client.run_service_on_network('miniboss-test-service',
-                                                       service,
-                                                       Network(name='miniboss-test-network', id=""))
+        container_name = client.run_service_on_network(
+            "miniboss-test-service",
+            service,
+            Network(name="miniboss-test-network", id=""),
+        )
         self.container_cleanup.append(container_name)
-        resp = requests.get('http://localhost:8085')
+        resp = requests.get("http://localhost:8085")
         assert resp.status_code == 200
 
     def test_service_cmd(self):
         client = DockerClient.get_client()
-        client.create_network('miniboss-test-network')
-        self.network_cleanup.append('miniboss-test-network')
+        client.create_network("miniboss-test-network")
+        self.network_cleanup.append("miniboss-test-network")
+
         class TestService(miniboss.Service):
-            name = 'test-service'
-            image = 'python:3.7'
+            name = "test-service"
+            image = "python:3.7"
             ports = {8000: 8085}
             cmd = ["python3", "-m", "http.server"]
+
         service = TestService()
-        container_name = client.run_service_on_network('miniboss-test-service',
-                                                       service,
-                                                       Network(name='miniboss-test-network', id=""))
+        container_name = client.run_service_on_network(
+            "miniboss-test-service",
+            service,
+            Network(name="miniboss-test-network", id=""),
+        )
         self.container_cleanup.append(container_name)
-        resp = requests.get('http://localhost:8085')
+        resp = requests.get("http://localhost:8085")
         assert resp.status_code == 200
 
     def test_service_user(self):
         client = DockerClient.get_client()
-        client.create_network('miniboss-test-network')
-        self.network_cleanup.append('miniboss-test-network')
+        client.create_network("miniboss-test-network")
+        self.network_cleanup.append("miniboss-test-network")
         context = tempfile.mkdtemp()
-        with open(os.path.join(context, 'Dockerfile'), 'w') as dockerfile:
+        with open(os.path.join(context, "Dockerfile"), "w") as dockerfile:
             # The Dockerfile has no USER command; it only creates the user but
             # does not set it
-            dockerfile.write("""FROM python:3.7
+            dockerfile.write(
+                """FROM python:3.7
 RUN useradd -m --uid 1000 dockeruser
 RUN pip install flask
 COPY app.py .
-CMD ["python3", "app.py"]""")
-        with open(os.path.join(context, 'app.py'), 'w') as app_file:
-            app_file.write("""
+CMD ["python3", "app.py"]"""
+            )
+        with open(os.path.join(context, "app.py"), "w") as app_file:
+            app_file.write(
+                """
 import getpass
 from flask import Flask
 app = Flask('the-app')
@@ -153,44 +168,53 @@ def index():
     return getpass.getuser()
 
 app.run(host='0.0.0.0', port=8080)
-""")
+"""
+            )
         lib_client = get_lib_client()
         lib_client.images.build(path=context, tag="user-container")
         self.image_cleanup.append("user-container")
 
         class TestService(miniboss.Service):
-            name = 'test-service'
-            image = 'user-container'
+            name = "test-service"
+            image = "user-container"
             ports = {8080: 8080}
             user = "dockeruser"
+
         service = TestService()
-        container_name = client.run_service_on_network('miniboss-test-service',
-                                                       service,
-                                                       Network(name='miniboss-test-network', id=""))
+        container_name = client.run_service_on_network(
+            "miniboss-test-service",
+            service,
+            Network(name="miniboss-test-network", id=""),
+        )
         self.container_cleanup.append(container_name)
-        resp = requests.get('http://localhost:8080')
+        resp = requests.get("http://localhost:8080")
         assert resp.status_code == 200
         assert resp.text == "dockeruser"
 
-
-    @pytest.mark.skipif(selinux_enabled(), reason="This test will not run if seelinux enabled, disable" \
-                        "it with `su -c \"setenforce 0\"`, and then re-enable it")
+    @pytest.mark.skipif(
+        selinux_enabled(),
+        reason="This test will not run if seelinux enabled, disable"
+        'it with `su -c "setenforce 0"`, and then re-enable it',
+    )
     def test_run_service_volume_mount(self):
         client = DockerClient.get_client()
-        client.create_network('miniboss-test-network')
-        self.network_cleanup.append('miniboss-test-network')
-        #----------------------------
+        client.create_network("miniboss-test-network")
+        self.network_cleanup.append("miniboss-test-network")
+        # ----------------------------
         context = tempfile.mkdtemp()
-        with open(os.path.join(context, 'Dockerfile'), 'w') as dockerfile:
-            dockerfile.write("""FROM python:3.7
+        with open(os.path.join(context, "Dockerfile"), "w") as dockerfile:
+            dockerfile.write(
+                """FROM python:3.7
 RUN useradd -m --uid 1000 dockeruser
 USER 1000:1000
 WORKDIR /home/dockeruser
 RUN pip install flask
 COPY app.py .
-CMD ["python3", "app.py"]""")
-        with open(os.path.join(context, 'app.py'), 'w') as app_file:
-            app_file.write("""
+CMD ["python3", "app.py"]"""
+            )
+        with open(os.path.join(context, "app.py"), "w") as app_file:
+            app_file.write(
+                """
 from flask import Flask
 app = Flask('the-app')
 
@@ -201,63 +225,72 @@ def index():
     return retval
 
 app.run(host='0.0.0.0', port=8080)
-""")
+"""
+            )
         lib_client = get_lib_client()
         lib_client.images.build(path=context, tag="mounted-container")
         self.image_cleanup.append("mounted-container")
-        #----------------------------
+        # ----------------------------
         mount_dir = tempfile.mkdtemp()
         key = str(uuid.uuid4())
-        with open(os.path.join(mount_dir, 'key.txt'), 'w') as keyfile:
+        with open(os.path.join(mount_dir, "key.txt"), "w") as keyfile:
             keyfile.write(key)
+
         class TestService(miniboss.Service):
-            name = 'test-service'
-            image = 'mounted-container'
+            name = "test-service"
+            image = "mounted-container"
             ports = {8080: 8080}
-            volumes = {mount_dir: {'bind': '/mnt/volume1', 'mode': 'ro'}}
+            volumes = {mount_dir: {"bind": "/mnt/volume1", "mode": "ro"}}
+
         service = TestService()
-        container_name = client.run_service_on_network('miniboss-test-service',
-                                                       service,
-                                                       Network(name='miniboss-test-network', id=""))
+        container_name = client.run_service_on_network(
+            "miniboss-test-service",
+            service,
+            Network(name="miniboss-test-network", id=""),
+        )
         self.container_cleanup.append(container_name)
-        resp = requests.get('http://localhost:8080')
+        resp = requests.get("http://localhost:8080")
         assert resp.status_code == 200
         assert resp.text == key
-
 
     def test_check_image_invalid_url(self):
         client = DockerClient.get_client()
         with pytest.raises(exceptions.DockerException):
-            client.check_image('somerepothatdoesntexist.org/imagename:imagetag')
+            client.check_image("somerepothatdoesntexist.org/imagename:imagetag")
 
     def test_check_image_missing_tag(self):
         lib_client = get_lib_client()
-        lib_client.images.pull('registry:2')
-        hub_container = lib_client.containers.run('registry:2', detach=True, ports={5000:5000})
+        lib_client.images.pull("registry:2")
+        hub_container = lib_client.containers.run(
+            "registry:2", detach=True, ports={5000: 5000}
+        )
         self.container_cleanup.append(hub_container.name)
         client = DockerClient.get_client()
         with pytest.raises(exceptions.DockerException):
             client.check_image("localhost:5000/this-repo:not-exist")
 
-
     def test_check_image_download_from_repo(self):
         lib_client = get_lib_client()
         # Start a local instance of the container
-        lib_client.images.pull('registry:2')
-        hub_container = lib_client.containers.run('registry:2', detach=True, ports={5000:5000})
+        lib_client.images.pull("registry:2")
+        hub_container = lib_client.containers.run(
+            "registry:2", detach=True, ports={5000: 5000}
+        )
         self.container_cleanup.append(hub_container.name)
         # Sanity check: the registry container should be running
-        assert lib_client.containers.get(hub_container.id).status == 'running'
+        assert lib_client.containers.get(hub_container.id).status == "running"
         # Now build a container that's tagged for the local registry
         context = tempfile.mkdtemp()
-        with open(os.path.join(context, 'Dockerfile'), 'w') as dockerfile:
-            dockerfile.write("""FROM nginx
-COPY index.html /usr/share/nginx/html""")
-        with open(os.path.join(context, 'index.html'), 'w') as index:
+        with open(os.path.join(context, "Dockerfile"), "w") as dockerfile:
+            dockerfile.write(
+                """FROM nginx
+COPY index.html /usr/share/nginx/html"""
+            )
+        with open(os.path.join(context, "index.html"), "w") as index:
             index.write("ALL GOOD")
         lib_client.images.build(path=context, tag="localhost:5000/allis:good")
         lib_client.images.push("localhost:5000/allis:good")
-        #Let's delete the image from the local cache so that it has to be downloaded
+        # Let's delete the image from the local cache so that it has to be downloaded
         lib_client.images.remove("localhost:5000/allis:good")
         client = DockerClient.get_client()
         images = lib_client.images.list(name="localhost:5000/allis")
@@ -268,72 +301,81 @@ COPY index.html /usr/share/nginx/html""")
         # Should be killed on tearDown
         self.image_cleanup.append("localhost:5000/allis:good")
 
-
     def test_run_container(self):
         client = DockerClient.get_client()
-        client.create_network('miniboss-test-network')
-        self.network_cleanup.append('miniboss-test-network')
+        client.create_network("miniboss-test-network")
+        self.network_cleanup.append("miniboss-test-network")
+
         class TestService(miniboss.Service):
-            name = 'test-service'
-            image = 'nginx'
+            name = "test-service"
+            image = "nginx"
             ports = {80: 8085}
+
         service = TestService()
-        container_name = client.run_service_on_network('miniboss-test-service',
-                                                       service,
-                                                       Network(name='miniboss-test-network', id=""))
+        container_name = client.run_service_on_network(
+            "miniboss-test-service",
+            service,
+            Network(name="miniboss-test-network", id=""),
+        )
         self.container_cleanup.append(container_name)
-        resp = requests.get('http://localhost:8085')
+        resp = requests.get("http://localhost:8085")
         assert resp.status_code == 200
         lib_client = get_lib_client()
         container = lib_client.containers.get(container_name)
         container.stop()
         # Let's make sure it's not running
         with pytest.raises(Exception):
-            resp = requests.get('http://localhost:8085')
+            resp = requests.get("http://localhost:8085")
         # and restart it
         client.run_container(container.id)
-        resp = requests.get('http://localhost:8085')
+        resp = requests.get("http://localhost:8085")
         assert resp.status_code == 200
-
 
     def test_print_error_on_container_dead(self):
         lib_client = get_lib_client()
         context = tempfile.mkdtemp()
-        with open(os.path.join(context, 'Dockerfile'), 'w') as dockerfile:
-            dockerfile.write("""FROM bash
+        with open(os.path.join(context, "Dockerfile"), "w") as dockerfile:
+            dockerfile.write(
+                """FROM bash
 WORKDIR /
 COPY fail.sh /
 RUN chmod +x /fail.sh
-CMD ["/fail.sh"]""")
-        with open(os.path.join(context, 'fail.sh'), 'w') as index:
+CMD ["/fail.sh"]"""
+            )
+        with open(os.path.join(context, "fail.sh"), "w") as index:
             index.write("echo 'Going down' && exit 1")
         lib_client.images.build(path=context, tag="crashing-container")
-        self.image_cleanup.append('crashing-container')
+        self.image_cleanup.append("crashing-container")
         client = DockerClient.get_client()
-        client.create_network('miniboss-test-network')
-        self.network_cleanup.append('miniboss-test-network')
+        client.create_network("miniboss-test-network")
+        self.network_cleanup.append("miniboss-test-network")
+
         class FailingService(miniboss.Service):
-            name = 'failing-service'
-            image = 'crashing-container'
+            name = "failing-service"
+            image = "crashing-container"
+
         service = FailingService()
         with pytest.raises(exceptions.ContainerStartException) as exception_context:
-            client.run_service_on_network('miniboss-failing-service',
-                                          service,
-                                          Network(name='miniboss-test-network', id=""))
+            client.run_service_on_network(
+                "miniboss-failing-service",
+                service,
+                Network(name="miniboss-test-network", id=""),
+            )
         exception = exception_context.value
         self.container_cleanup.append(exception.container_name)
         assert exception.logs == "Going down\n"
 
-
     def test_build_image(self):
         lib_client = get_lib_client()
         context = tempfile.mkdtemp()
-        with open(os.path.join(context, 'Dockerfile'), 'w') as dockerfile:
-            dockerfile.write("""FROM nginx
-COPY index.html /usr/share/nginx/html""")
-        with open(os.path.join(context, 'index.html'), 'w') as index:
+        with open(os.path.join(context, "Dockerfile"), "w") as dockerfile:
+            dockerfile.write(
+                """FROM nginx
+COPY index.html /usr/share/nginx/html"""
+            )
+        with open(os.path.join(context, "index.html"), "w") as index:
             index.write("ALL GOOD")
         client = DockerClient.get_client()
-        client.build_image(context, 'Dockerfile', 'temporary-tag')
+        client.build_image(context, "Dockerfile", "temporary-tag")
         images = lib_client.images.list(name="temporary-tag")
         assert len(images) == 1
