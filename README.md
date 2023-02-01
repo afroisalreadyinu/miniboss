@@ -402,6 +402,7 @@ or a specific service is [reloaded](#reloading-a-service).
 - [ ] Add stop-only command
 - [ ] Add start-only command
 - [ ] Making easier to test on the cloud??
+- [ ] podman support
 - [ ] Run tests in container (how?)
 - [ ] Exporting environment values for use in shell
 - [ ] Running one-off containers
